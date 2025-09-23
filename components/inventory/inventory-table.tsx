@@ -39,7 +39,7 @@ export function InventoryTable() {
     }
     setLoading(false)
   }
-
+/*COMENTARIOS DE PRUEBA*/
   const getStockStatus = (product: Product) => {
     if (product.stock_quantity === 0) {
       return { label: "Sin stock", variant: "destructive" as const }

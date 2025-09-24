@@ -61,89 +61,136 @@ export function NewSaleForm() {
     if (storesData) setStores(storesData);
   };
 
-  const searchProduct = async (barcode: string) => {
-    if (!barcode.trim() || !selectedStore) return;
-
+  // Función centralizada para agregar productos (por barcode o producto directo)
+  const addProductToSale = (barcodeOrProduct: string | Product) => {
     const supabase = createClient();
-    const { data: product, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("store_id", selectedStore)
-      .eq("is_active", true)
-      .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
-      .single();
 
-    if (error || !product) {
-      toast({
-        title: "Producto no encontrado",
-        description:
-          "No se encontró un producto con ese código en la tienda seleccionada",
-        variant: "destructive",
+    if (typeof barcodeOrProduct === "string") {
+      const barcode = barcodeOrProduct.trim();
+      if (!barcode || !selectedStore) return;
+
+      supabase
+        .from("products")
+        .select("*")
+        .eq("store_id", selectedStore)
+        .eq("is_active", true)
+        .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
+        .single()
+        .then(({ data: product, error }) => {
+          if (error || !product) {
+            toast({
+              title: "Producto no encontrado",
+              description:
+                "No se encontró un producto con ese código en la tienda seleccionada",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (product.stock_quantity <= 0) {
+            toast({
+              title: "Sin stock",
+              description: "Este producto no tiene stock disponible",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          setSaleItems((prevItems) => {
+            const existingIndex = prevItems.findIndex(
+              (item) => item.product.id === product.id
+            );
+
+            if (existingIndex >= 0) {
+              const updatedItems = [...prevItems];
+              const currentQuantity = updatedItems[existingIndex].quantity;
+
+              if (currentQuantity >= product.stock_quantity) {
+                toast({
+                  title: "Stock insuficiente",
+                  description: `Solo hay ${product.stock_quantity} unidades disponibles`,
+                  variant: "destructive",
+                });
+                return prevItems;
+              }
+
+              updatedItems[existingIndex] = {
+                ...updatedItems[existingIndex],
+                quantity: currentQuantity + 1,
+                total_price: (currentQuantity + 1) * product.unit_price,
+              };
+              return updatedItems;
+            } else {
+              return [
+                ...prevItems,
+                {
+                  product,
+                  quantity: 1,
+                  unit_price: product.unit_price,
+                  total_price: product.unit_price,
+                },
+              ];
+            }
+          });
+
+          setBarcodeInput(""); // Limpiar input solo después de agregar
+        });
+    } else {
+      const product = barcodeOrProduct;
+      setSaleItems((prevItems) => {
+        const existingIndex = prevItems.findIndex(
+          (item) => item.product.id === product.id
+        );
+
+        if (existingIndex >= 0) {
+          const updatedItems = [...prevItems];
+          const currentQuantity = updatedItems[existingIndex].quantity;
+
+          if (currentQuantity >= product.stock_quantity) {
+            toast({
+              title: "Stock insuficiente",
+              description: `Solo hay ${product.stock_quantity} unidades disponibles`,
+              variant: "destructive",
+            });
+            return prevItems;
+          }
+
+          updatedItems[existingIndex] = {
+            ...updatedItems[existingIndex],
+            quantity: currentQuantity + 1,
+            total_price: (currentQuantity + 1) * product.unit_price,
+          };
+          return updatedItems;
+        } else {
+          return [
+            ...prevItems,
+            {
+              product,
+              quantity: 1,
+              unit_price: product.unit_price,
+              total_price: product.unit_price,
+            },
+          ];
+        }
       });
-      return;
-    }
 
-    if (product.stock_quantity <= 0) {
-      toast({
-        title: "Sin stock",
-        description: "Este producto no tiene stock disponible",
-        variant: "destructive",
-      });
-      return;
+      setBarcodeInput("");
     }
-
-    addProductToSale(product);
   };
 
   const handleBarcodeScanned = (barcode: string) => {
     console.log("[v0] Barcode recibido del escáner:", barcode);
-
-    const productAdded = addProductToSale(barcode); // ✅ devuelvo true si se agregó nuevo
-    if (productAdded) setShowScanner(false); // cerrar solo si es nuevo producto
-  };
-
-  const addProductToSale = (product: Product): boolean => {
-    const existingItemIndex = saleItems.findIndex(
-      (item) => item.product.id === product.id
-    );
-
-    if (existingItemIndex >= 0) {
-      const updatedItems = [...saleItems];
-      const currentQuantity = updatedItems[existingItemIndex].quantity;
-
-      if (currentQuantity >= product.stock_quantity) {
-        toast({
-          title: "Stock insuficiente",
-          description: `Solo hay ${product.stock_quantity} unidades disponibles`,
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      updatedItems[existingItemIndex].quantity += 1;
-      updatedItems[existingItemIndex].total_price =
-        updatedItems[existingItemIndex].quantity * product.unit_price;
-      setSaleItems(updatedItems);
-      return false; // ❌ ya existía, no cerrar modal
-    } else {
-      const newItem: SaleItem = {
-        product,
-        quantity: 1,
-        unit_price: product.unit_price,
-        total_price: product.unit_price,
-      };
-      setSaleItems([...saleItems, newItem]);
-      return true; // ✅ nuevo producto, cerrar modal
-    }
+    addProductToSale(barcode);
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
-    setSaleItems((prevItems) => {
-      if (newQuantity <= 0) {
-        return prevItems.filter((item) => item.product.id !== productId);
-      }
+    if (newQuantity <= 0) {
+      removeItem(productId);
+      return;
+    }
 
-      return prevItems.map((item) => {
+    setSaleItems((prevItems) =>
+      prevItems.map((item) => {
         if (item.product.id === productId) {
           if (newQuantity > item.product.stock_quantity) {
             toast({
@@ -160,12 +207,14 @@ export function NewSaleForm() {
           };
         }
         return item;
-      });
-    });
+      })
+    );
   };
 
   const removeItem = (productId: string) => {
-    setSaleItems(saleItems.filter((item) => item.product.id !== productId));
+    setSaleItems((prevItems) =>
+      prevItems.filter((item) => item.product.id !== productId)
+    );
   };
 
   const calculateTotals = () => {
@@ -280,6 +329,7 @@ export function NewSaleForm() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Información de venta */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
@@ -349,6 +399,7 @@ export function NewSaleForm() {
         </CardContent>
       </Card>
 
+      {/* Escáner y input de productos */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
@@ -365,16 +416,14 @@ export function NewSaleForm() {
                   onChange={(e) => setBarcodeInput(e.target.value)}
                   placeholder="Escanea o escribe el código de barras, SKU o nombre del producto..."
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      searchProduct(e.currentTarget.value);
-                    }
+                    if (e.key === "Enter") addProductToSale(barcodeInput);
                   }}
                   disabled={!selectedStore}
                 />
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={() => searchProduct(barcodeInput)}
+                  onClick={() => addProductToSale(barcodeInput)}
                   disabled={!selectedStore || !barcodeInput.trim()}
                   className="flex-1 sm:flex-none"
                 >
@@ -402,6 +451,7 @@ export function NewSaleForm() {
         </CardContent>
       </Card>
 
+      {/* Tabla de productos en venta */}
       {saleItems.length > 0 && (
         <Card>
           <CardHeader>
@@ -532,6 +582,7 @@ export function NewSaleForm() {
         </Card>
       )}
 
+      {/* Escáner de códigos */}
       <BarcodeScanner
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}

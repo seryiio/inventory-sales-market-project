@@ -18,17 +18,17 @@ export function SalesHeader() {
 
       <div className="flex items-center gap-3">
         <Link href="/reports">
-          <Button variant="outline" size="sm">
+          <Button className="cursor-pointer" variant="outline" size="sm">
             <TrendingUp className="h-4 w-4 mr-2" />
             Reportes
           </Button>
         </Link>
-        <Button variant="outline" size="sm">
+        <Button className="cursor-pointer" variant="outline" size="sm">
           <Download className="h-4 w-4 mr-2" />
           Exportar
         </Button>
         <Link href="/sales/new">
-          <Button className="bg-primary text-primary-foreground">
+          <Button className="bg-primary text-primary-foreground cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             Nueva Venta
           </Button>

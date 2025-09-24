@@ -1,30 +1,46 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
-import type { Sale } from "@/lib/types"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { MoreHorizontal, Eye, Printer, RefreshCw } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Sale } from "@/lib/types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { MoreHorizontal, Eye, Printer, RefreshCw } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { Icons } from "../icons";
+import { useToast } from "../ui/use-toast";
 
 export function SalesTable() {
-  const [sales, setSales] = useState<Sale[]>([])
-  const [loading, setLoading] = useState(true)
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadSales()
-  }, [])
+    loadSales();
+  }, []);
 
   const loadSales = async () => {
-    const supabase = createClient()
+    const supabase = createClient();
 
     const { data, error } = await supabase
       .from("sales")
-      .select(`
+      .select(
+        `
         *,
         store:stores(name, type),
         sale_items(
@@ -34,38 +50,45 @@ export function SalesTable() {
           total_price,
           product:products(name)
         )
-      `)
+      `
+      )
       .order("created_at", { ascending: false })
-      .limit(50)
+      .limit(50);
 
     if (error) {
-      console.error("Error loading sales:", error)
+      console.error("Error loading sales:", error);
     } else {
-      setSales(data || [])
+      setSales(data || []);
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
         return (
-          <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+          <Badge
+            variant="default"
+            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+          >
             Completada
           </Badge>
-        )
+        );
       case "pending":
         return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+          >
             Pendiente
           </Badge>
-        )
+        );
       case "cancelled":
-        return <Badge variant="destructive">Cancelada</Badge>
+        return <Badge variant="destructive">Cancelada</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
   const getPaymentMethodBadge = (method: string) => {
     const methods: Record<string, string> = {
@@ -73,13 +96,26 @@ export function SalesTable() {
       tarjeta: "Tarjeta",
       transferencia: "Transferencia",
       credito: "Crédito",
-    }
-    return methods[method] || method
-  }
+    };
+    return methods[method] || method;
+  };
 
   if (loading) {
-    return <div className="text-center py-8">Cargando ventas...</div>
+    return <div className="text-center py-8">Cargando ventas...</div>;
   }
+
+  const handleDelete = async (id: string) => {
+      if (!confirm("¿Seguro que quieres eliminar este producto?")) return;
+      const supabase = createClient();
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (error)
+        toast({
+          title: "Error al eliminar",
+          description: error.message,
+          variant: "destructive",
+        });
+      else setSales((prev) => prev.filter((p) => p.id !== id));
+    };
 
   return (
     <>
@@ -102,7 +138,10 @@ export function SalesTable() {
           <TableBody>
             {sales.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={9}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No hay ventas registradas
                 </TableCell>
               </TableRow>
@@ -114,9 +153,13 @@ export function SalesTable() {
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="font-medium">{sale.customer_name || "Cliente general"}</div>
+                      <div className="font-medium">
+                        {sale.customer_name || "Cliente general"}
+                      </div>
                       {sale.customer_phone && (
-                        <div className="text-xs text-muted-foreground">{sale.customer_phone}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {sale.customer_phone}
+                        </div>
                       )}
                     </div>
                   </TableCell>
@@ -126,12 +169,18 @@ export function SalesTable() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{(sale as any).sale_items?.length || 0} productos</div>
+                    <div className="text-sm">
+                      {(sale as any).sale_items?.length || 0} productos
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{formatCurrency(sale.total_amount)}</div>
+                    <div className="font-medium">
+                      {formatCurrency(sale.total_amount)}
+                    </div>
                     {sale.discount_amount > 0 && (
-                      <div className="text-xs text-muted-foreground">Desc: {formatCurrency(sale.discount_amount)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Desc: {formatCurrency(sale.discount_amount)}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>
@@ -144,29 +193,14 @@ export function SalesTable() {
                     <div className="text-sm">{formatDate(sale.created_at)}</div>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Ver detalles
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Printer className="h-4 w-4 mr-2" />
-                          Imprimir
-                        </DropdownMenuItem>
-                        {sale.status === "pending" && (
-                          <DropdownMenuItem>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Completar
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      style={{ color: "red" }}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(sale.id)}
+                    >
+                      <Icons.Trash2 className="h-4 w-4 stroke-red-500" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -179,7 +213,9 @@ export function SalesTable() {
       <div className="lg:hidden space-y-4">
         {sales.length === 0 ? (
           <Card>
-            <CardContent className="text-center py-8 text-muted-foreground">No hay ventas registradas</CardContent>
+            <CardContent className="text-center py-8 text-muted-foreground">
+              No hay ventas registradas
+            </CardContent>
           </Card>
         ) : (
           sales.map((sale) => (
@@ -188,8 +224,12 @@ export function SalesTable() {
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <h3 className="font-medium text-sm">{sale.sale_number}</h3>
-                      <p className="text-xs text-muted-foreground">{formatDate(sale.created_at)}</p>
+                      <h3 className="font-medium text-sm">
+                        {sale.sale_number}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(sale.created_at)}
+                      </p>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -229,19 +269,31 @@ export function SalesTable() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Cliente</p>
-                      <p className="font-medium">{sale.customer_name || "Cliente general"}</p>
-                      {sale.customer_phone && <p className="text-xs text-muted-foreground">{sale.customer_phone}</p>}
+                      <p className="font-medium">
+                        {sale.customer_name || "Cliente general"}
+                      </p>
+                      {sale.customer_phone && (
+                        <p className="text-xs text-muted-foreground">
+                          {sale.customer_phone}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-muted-foreground">Items</p>
-                      <p className="font-medium">{(sale as any).sale_items?.length || 0} productos</p>
+                      <p className="font-medium">
+                        {(sale as any).sale_items?.length || 0} productos
+                      </p>
                     </div>
                   </div>
 
                   <div className="pt-2 border-t">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Total:</span>
-                      <span className="font-bold text-lg">{formatCurrency(sale.total_amount)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total:
+                      </span>
+                      <span className="font-bold text-lg">
+                        {formatCurrency(sale.total_amount)}
+                      </span>
                     </div>
                     {sale.discount_amount > 0 && (
                       <div className="flex justify-between items-center text-xs text-muted-foreground">
@@ -257,5 +309,5 @@ export function SalesTable() {
         )}
       </div>
     </>
-  )
+  );
 }

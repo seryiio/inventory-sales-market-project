@@ -8,6 +8,7 @@ import { Icons } from "@/components/icons"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { Store, Category } from "@/lib/types"
+import { Search } from "lucide-react"
 
 export function InventoryFilters() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -49,8 +50,8 @@ export function InventoryFilters() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4">
-        <div className="relative">
-          <Icons.Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar productos por nombre, código de barras o SKU..."
             value={searchTerm}

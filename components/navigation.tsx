@@ -66,7 +66,7 @@ export function Navigation() {
                 <Link href={item.href} onClick={() => setIsOpen(false)}>
                   <Button
                     variant={isActive ? "default" : "ghost"}
-                    className={cn("w-full justify-start gap-3", isActive && "bg-primary text-primary-foreground")}
+                    className={cn("w-full justify-start gap-3 cursor-pointer", isActive && "bg-primary text-primary-foreground")}
                   >
                     <item.icon />
                     {item.name}

@@ -97,10 +97,12 @@ export function NewSaleForm() {
 
   const handleBarcodeScanned = (barcode: string) => {
     console.log("[v0] Barcode recibido del escáner:", barcode);
-    searchProduct(barcode);
+
+    const productAdded = addProductToSale(barcode); // ✅ devuelvo true si se agregó nuevo
+    if (productAdded) setShowScanner(false); // cerrar solo si es nuevo producto
   };
 
-  const addProductToSale = (product: Product) => {
+  const addProductToSale = (product: Product): boolean => {
     const existingItemIndex = saleItems.findIndex(
       (item) => item.product.id === product.id
     );
@@ -115,13 +117,14 @@ export function NewSaleForm() {
           description: `Solo hay ${product.stock_quantity} unidades disponibles`,
           variant: "destructive",
         });
-        return;
+        return false;
       }
 
       updatedItems[existingItemIndex].quantity += 1;
       updatedItems[existingItemIndex].total_price =
         updatedItems[existingItemIndex].quantity * product.unit_price;
       setSaleItems(updatedItems);
+      return false; // ❌ ya existía, no cerrar modal
     } else {
       const newItem: SaleItem = {
         product,
@@ -130,34 +133,35 @@ export function NewSaleForm() {
         total_price: product.unit_price,
       };
       setSaleItems([...saleItems, newItem]);
+      return true; // ✅ nuevo producto, cerrar modal
     }
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(productId);
-      return;
-    }
-
-    const updatedItems = saleItems.map((item) => {
-      if (item.product.id === productId) {
-        if (newQuantity > item.product.stock_quantity) {
-          toast({
-            title: "Stock insuficiente",
-            description: `Solo hay ${item.product.stock_quantity} unidades disponibles`,
-            variant: "destructive",
-          });
-          return item;
-        }
-        return {
-          ...item,
-          quantity: newQuantity,
-          total_price: newQuantity * item.unit_price,
-        };
+    setSaleItems((prevItems) => {
+      if (newQuantity <= 0) {
+        return prevItems.filter((item) => item.product.id !== productId);
       }
-      return item;
+
+      return prevItems.map((item) => {
+        if (item.product.id === productId) {
+          if (newQuantity > item.product.stock_quantity) {
+            toast({
+              title: "Stock insuficiente",
+              description: `Solo hay ${item.product.stock_quantity} unidades disponibles`,
+              variant: "destructive",
+            });
+            return item;
+          }
+          return {
+            ...item,
+            quantity: newQuantity,
+            total_price: newQuantity * item.unit_price,
+          };
+        }
+        return item;
+      });
     });
-    setSaleItems(updatedItems);
   };
 
   const removeItem = (productId: string) => {

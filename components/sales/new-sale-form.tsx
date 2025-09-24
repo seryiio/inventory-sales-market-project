@@ -364,7 +364,7 @@ export function NewSaleForm() {
                   placeholder="Escanea o escribe el código de barras, SKU o nombre del producto..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      searchProduct(barcodeInput);
+                      searchProduct(e.currentTarget.value);
                     }
                   }}
                   disabled={!selectedStore}

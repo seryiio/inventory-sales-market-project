@@ -1,123 +1,135 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Icons } from "@/components/icons"
-import { BrowserMultiFormatReader } from "@zxing/browser"
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Icons } from "@/components/icons";
+import { BrowserMultiFormatReader } from "@zxing/browser";
 
 interface BarcodeScannerProps {
-  onScan: (barcode: string) => Promise<void> | void
-  isOpen: boolean
-  onClose: () => void
+  onScan: (barcode: string) => Promise<void> | void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
-  const cancelRef = useRef<(() => void) | null>(null)
-  const scannedRef = useRef(false)
-  const processingRef = useRef(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isScanning, setIsScanning] = useState(false)
+export function BarcodeScanner({
+  onScan,
+  isOpen,
+  onClose,
+}: BarcodeScannerProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
+  const scannedRef = useRef(false);
+  const processingRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) stopScanner()
-  }, [isOpen])
+    if (!isOpen) stopScanner();
+  }, [isOpen]);
 
   const startScanner = async () => {
-    setError(null)
-    scannedRef.current = false
-    processingRef.current = false
+    setError(null);
+    scannedRef.current = false;
+    processingRef.current = false;
     try {
-      setIsScanning(true)
+      setIsScanning(true);
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
-      })
+      });
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play().catch((e) => console.warn("video.play() fallo:", e))
+        videoRef.current.srcObject = stream;
+        await videoRef.current
+          .play()
+          .catch((e) => console.warn("video.play() fallo:", e));
       }
 
-      const scanner = new BrowserMultiFormatReader()
-      scannerRef.current = scanner
+      const scanner = new BrowserMultiFormatReader();
+      scannerRef.current = scanner;
 
       cancelRef.current = await scanner.decodeFromVideoDevice(
         undefined,
         videoRef.current!,
         async (result, err) => {
           if (result && !scannedRef.current && !processingRef.current) {
-            scannedRef.current = true
-            processingRef.current = true
+            scannedRef.current = true;
+            processingRef.current = true;
 
             try {
-              const code = result.getText()
-              console.log("[scanner] resultado:", code)
-              stopScanner()
-              await onScan(code)
-              onClose()
+              const code = result.getText();
+              console.log("[scanner] resultado:", code);
+              stopScanner();
+              await onScan(code);
+              onClose();
             } finally {
-              processingRef.current = false
+              processingRef.current = false;
             }
           }
 
           if (err && !(err.name === "NotFoundException")) {
-            console.error("[scanner] decode error:", err)
+            console.error("[scanner] decode error:", err);
           }
         }
-      )
+      );
     } catch (err) {
-      console.error("start error:", err)
-      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.")
-      setIsScanning(false)
+      console.error("start error:", err);
+      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.");
+      setIsScanning(false);
     }
-  }
+  };
 
   const stopScanner = () => {
-    setIsScanning(false)
+    console.log("[scanner] stopScanner called");
+    setIsScanning(false);
 
     try {
       if (cancelRef.current) {
-        cancelRef.current()
-        cancelRef.current = null
+        cancelRef.current();
+        cancelRef.current = null;
       }
 
-      scannerRef.current = null
+      scannerRef.current = null;
 
       if (videoRef.current && videoRef.current.srcObject) {
-        const s = videoRef.current.srcObject as MediaStream
-        s.getTracks().forEach((t) => t.stop())
-        videoRef.current.srcObject = null
+        const s = videoRef.current.srcObject as MediaStream;
+        s.getTracks().forEach((t) => t.stop());
+        videoRef.current.srcObject = null;
       }
     } catch (e) {
-      console.warn("[scanner] stopScanner unexpected error:", e)
+      console.warn("[scanner] stopScanner unexpected error:", e);
     } finally {
-      scannedRef.current = false
-      processingRef.current = false
+      scannedRef.current = false;
+      processingRef.current = false;
     }
-  }
+  };
 
   const handleManualInput = () => {
-    const barcode = prompt("Ingresa el código de barras manualmente:")
+    const barcode = prompt("Ingresa el código de barras manualmente:");
     if (barcode && barcode.trim()) {
-      console.log("[scanner] manual barcode:", barcode.trim())
-      onScan(barcode.trim())
-      stopScanner()
-      onClose()
+      console.log("[scanner] manual barcode:", barcode.trim());
+      onScan(barcode.trim());
+      stopScanner();
+      onClose();
     }
-  }
+  };
 
   return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
         if (!open) {
-          stopScanner()
-          onClose()
+          stopScanner();
+          onClose();
         }
       }}
     >
@@ -153,8 +165,8 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
                   <Button
                     variant="outline"
                     onClick={() => {
-                      stopScanner()
-                      onClose()
+                      stopScanner();
+                      onClose();
                     }}
                     className="flex-1 bg-transparent"
                   >
@@ -199,5 +211,5 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

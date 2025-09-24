@@ -292,6 +292,97 @@ export function InventoryTable() {
         </Table>
       </div>
 
+      {/* Tabla Móvil */}
+      <div className="block lg:hidden space-y-4">
+        {products.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No hay productos registrados
+          </div>
+        ) : (
+          products.map((product) => {
+            const stockStatus = getStockStatus(product);
+            return (
+              <Card key={product.id} className="p-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="font-medium">{product.name}</div>
+                    <div className="flex gap-2">
+                      <Button
+                        style={{ color: "orange" }}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startEditing(product)}
+                      >
+                        <Icons.Edit className="h-4 w-4 stroke-orange-500" />
+                      </Button>
+                      <Button
+                        style={{ color: "red" }}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(product.id)}
+                      >
+                        <Icons.Trash2 className="h-4 w-4 stroke-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Tienda</Label>
+                    <Badge
+                      variant="outline"
+                      className={getStoreTypeColor(
+                        (product as any).store?.type
+                      )}
+                    >
+                      {(product as any).store?.name}
+                    </Badge>
+                  </div>
+
+                  <div>
+                    <Label>Categoría</Label>
+                    <div>
+                      {(product as any).category?.name || "Sin categoría"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Stock</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        {product.stock_quantity}
+                      </span>
+                      {product.stock_quantity <= product.min_stock && (
+                        <Icons.AlertTriangle />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Min: {product.min_stock} | Max: {product.max_stock}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Precio</Label>
+                    <div>{formatCurrency(product.unit_price)}</div>
+                  </div>
+
+                  <div>
+                    <Label>Costo</Label>
+                    <div>{formatCurrency(product.cost_price)}</div>
+                  </div>
+
+                  <div>
+                    <Label>Estado</Label>
+                    <Badge variant={stockStatus.variant}>
+                      {stockStatus.label}
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
       {/* Modal Edición */}
       {/* Modal Edición */}
       <Dialog

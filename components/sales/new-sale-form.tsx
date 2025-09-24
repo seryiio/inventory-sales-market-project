@@ -93,13 +93,12 @@ export function NewSaleForm() {
     }
 
     addProductToSale(product);
-    setBarcodeInput("");
   };
 
   const handleBarcodeScanned = (barcode: string) => {
     console.log("[v0] Barcode recibido del escáner:", barcode);
-    setBarcodeInput(barcode);
     searchProduct(barcode);
+    setShowScanner(false);
   };
 
   const addProductToSale = (product: Product) => {

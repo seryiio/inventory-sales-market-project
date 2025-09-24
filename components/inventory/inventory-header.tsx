@@ -9,10 +9,10 @@ export function InventoryHeader() {
   const [showAddDialog, setShowAddDialog] = useState(false)
 
   return (
-    <div className="flex items-center justify-between">
-      <div>
+      <div className="flex flex-col md:flex-row items-center justify-between">
+        <div className="text-center md:text-left">
         <h1 className="text-3xl font-bold text-foreground">Gestión de Inventario</h1>
-        <p className="text-muted-foreground mt-1">Administra productos, stock y alertas de inventario</p>
+        <p className="text-muted-foreground mt-1">Administra productos y stock de inventario</p>
       </div>
 
       <div className="flex items-center gap-3">

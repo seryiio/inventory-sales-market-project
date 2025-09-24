@@ -53,7 +53,7 @@ export function Navigation() {
         <Icons.Store />
         <div>
           <h1 className="font-bold text-lg">Sistema de Inventario</h1>
-          <p className="text-xs text-muted-foreground">Gestión integral</p>
+          <p className="text-xs text-muted-foreground">Control de Tiendas</p>
         </div>
       </div>
 
@@ -85,8 +85,9 @@ export function Navigation() {
         </Button>
 
         <div className="text-xs text-muted-foreground">
-          <p>Sistema v1.0</p>
-          <p>3 tiendas conectadas</p>
+          <p>App CyV v1.0</p>
+          <p>3 tiendas activas</p>
+          <p>WaynasCorp ♣</p>
         </div>
       </div>
     </>

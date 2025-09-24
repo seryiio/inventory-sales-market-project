@@ -6,8 +6,8 @@ import Link from "next/link"
 
 export function SalesHeader() {
   return (
-    <div className="flex items-center justify-between">
-      <div>
+      <div className="flex flex-col md:flex-row items-center justify-between">
+        <div className="text-center md:text-left">
         <h1 className="text-3xl font-bold text-foreground">Gestión de Ventas</h1>
         <p className="text-muted-foreground mt-1">Registra y administra las ventas de todas las tiendas</p>
       </div>

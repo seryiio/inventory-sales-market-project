@@ -18,7 +18,11 @@ interface BarcodeScannerProps {
   onClose: () => void;
 }
 
-export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps) {
+export function BarcodeScanner({
+  onScan,
+  isOpen,
+  onClose,
+}: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
   const cancelRef = useRef<(() => void) | null>(null);
@@ -31,7 +35,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   }, [isOpen]);
 
   const startScanner = async () => {
-    if (!isOpen) return; // ✅ Aseguramos que no arranque si el modal está cerrado
+    if (!isOpen) return;
     setError(null);
     scannedRef.current = false;
 
@@ -43,32 +47,37 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
         audio: false,
       });
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch((e) => console.warn("video.play() fallo:", e));
-      }
-
-      const scanner = new BrowserMultiFormatReader();
-      scannerRef.current = scanner;
-
-      cancelRef.current = scanner.decodeFromVideoDevice(
-        undefined,
-        videoRef.current!,
-        (result, err) => {
-          if (!isOpen) return;
-
-          if (result && !scannedRef.current) {
-            scannedRef.current = true;
-            onScan(result.getText());
-            stopScanner();
-            onClose();
-          }
-
-          if (err && !(err.name === "NotFoundException")) {
-            console.error("[scanner] decode error:", err);
-          }
+      // 🔹 Pequeño delay para asegurar que el <video> esté en el DOM
+      setTimeout(async () => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current
+            .play()
+            .catch((e) => console.warn("video.play() fallo:", e));
         }
-      );
+
+        const scanner = new BrowserMultiFormatReader();
+        scannerRef.current = scanner;
+
+        cancelRef.current = scanner.decodeFromVideoDevice(
+          undefined,
+          videoRef.current!,
+          (result, err) => {
+            if (!isOpen) return;
+
+            if (result && !scannedRef.current) {
+              scannedRef.current = true;
+              onScan(result.getText());
+              stopScanner();
+              onClose();
+            }
+
+            if (err && !(err.name === "NotFoundException")) {
+              console.error("[scanner] decode error:", err);
+            }
+          }
+        );
+      }, 100);
     } catch (err) {
       console.error("start error:", err);
       setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.");

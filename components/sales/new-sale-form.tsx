@@ -153,11 +153,53 @@ export function NewSaleForm() {
 
   // 🔹 Control de escaneo rápido para cámara y manual
   const handleBarcodeScanned = (barcode: string) => {
-    // ✅ Ignorar si ya fue escaneado en esta sesión del modal
-    if (scannedCodesRef.current.has(barcode)) return;
+    console.log("[v0] Barcode recibido del escáner:", barcode);
 
-    scannedCodesRef.current.add(barcode);
-    addProductToSale(barcode);
+    setSaleItems((prevItems) => {
+      const existingIndex = prevItems.findIndex(
+        (item) =>
+          item.product.barcode === barcode || item.product.sku === barcode
+      );
+
+      if (existingIndex >= 0) {
+        // Incrementar cantidad si ya existe
+        const updatedItems = [...prevItems];
+        const item = updatedItems[existingIndex];
+
+        if (item.quantity < item.product.stock_quantity) {
+          item.quantity += 1;
+          item.total_price = item.quantity * item.unit_price;
+        }
+
+        return updatedItems;
+      }
+
+      // Si no existe, agregar normalmente
+      // Aquí tendrías que buscar el producto en tu base de datos
+      const supabase = createClient();
+      supabase
+        .from("products")
+        .select("*")
+        .eq("store_id", selectedStore)
+        .eq("is_active", true)
+        .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
+        .single()
+        .then(({ data: product, error }) => {
+          if (product) {
+            setSaleItems((prev) => [
+              ...prev,
+              {
+                product,
+                quantity: 1,
+                unit_price: product.unit_price,
+                total_price: product.unit_price,
+              },
+            ]);
+          }
+        });
+
+      return prevItems;
+    });
   };
 
   const handleManualInput = () => {

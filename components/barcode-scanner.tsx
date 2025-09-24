@@ -14,84 +14,110 @@ interface BarcodeScannerProps {
 }
 
 export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
   const cancelRef = useRef<(() => void) | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
 
   useEffect(() => {
-    if (isOpen) {
-      startScanner()
-    } else {
+    // No arrancamos automáticamente la cámara al abrir el modal por seguridad;
+    // el usuario presiona "Activar Cámara". Si prefieres auto-start, llama startScanner() aquí.
+    if (!isOpen) {
+      // cuando se cierra el modal por cualquier vía, aseguramos detener todo
       stopScanner()
     }
-
-    return () => stopScanner()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const startScanner = async () => {
+    setError(null)
     try {
-      setError(null)
       setIsScanning(true)
 
-      // debug: listar cámaras
+      // debug: enumerar dispositivos para ver si el navegador reporta la cámara
       const devices = await navigator.mediaDevices.enumerateDevices()
-      console.log("Dispositivos disponibles:", devices)
+      console.log("[scanner] devices:", devices)
 
-      // pedir cámara trasera
-      const constraints = { video: { facingMode: "environment" } }
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      // pedimos el stream (trasera preferida)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      })
 
+      // forzamos el stream al <video>
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play().catch((e) => console.error("No se pudo reproducir video:", e))
+        // atributos HTML (autoplay/playsinline/muted) ya en JSX; forzamos play por si acaso
+        await videoRef.current.play().catch((e) => console.warn("[scanner] video.play() fallo:", e))
       }
 
+      // inicializamos el lector
       const scanner = new BrowserMultiFormatReader()
       scannerRef.current = scanner
 
+      // decodeFromVideoDevice devuelve una función de cancelación (que guardamos)
       cancelRef.current = await scanner.decodeFromVideoDevice(
         undefined,
         videoRef.current!,
         (result, err) => {
           if (result) {
-            console.log("Código detectado:", result.getText())
+            console.log("[scanner] result:", result.getText())
             onScan(result.getText())
+            // cerramos modal y detenemos scanner después de reportar el resultado
             handleClose()
           }
           if (err && !(err.name === "NotFoundException")) {
-            console.error("Error decoding:", err)
+            console.error("[scanner] decode error:", err)
           }
         }
       )
-    } catch (err) {
-      console.error("Error accediendo a la cámara:", err)
-      setError("No se pudo iniciar la cámara. Verifica permisos.")
+      console.log("[scanner] started")
+    } catch (err: any) {
+      console.error("[scanner] start error:", err)
+      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS y que el navegador permita acceder.")
       setIsScanning(false)
     }
   }
 
   const stopScanner = () => {
+    console.log("[scanner] stopScanner called")
     setIsScanning(false)
 
-    if (cancelRef.current) {
-      cancelRef.current()
-      cancelRef.current = null
-    }
+    try {
+      // si existe la función cancel, la ejecutamos
+      if (cancelRef.current) {
+        try {
+          cancelRef.current()
+        } catch (e) {
+          console.warn("[scanner] cancelRef error:", e)
+        }
+        cancelRef.current = null
+      }
 
-    if (scannerRef.current) {
+      // cleanup del scanner instance
       scannerRef.current = null
-    }
 
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream
-      stream.getTracks().forEach((track) => track.stop())
-      videoRef.current.srcObject = null
+      // detener cualquier track del video
+      if (videoRef.current && videoRef.current.srcObject) {
+        const s = videoRef.current.srcObject as MediaStream
+        s.getTracks().forEach((t) => {
+          try {
+            t.stop()
+          } catch (e) {
+            // ignore
+          }
+        })
+        videoRef.current.srcObject = null
+      }
+    } catch (e) {
+      console.warn("[scanner] stopScanner unexpected error:", e)
     }
   }
 
+  // handleClose que usa el resto del código (sin parámetros)
   const handleClose = () => {
+    console.log("[scanner] handleClose called")
     stopScanner()
     onClose()
   }
@@ -99,13 +125,25 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   const handleManualInput = () => {
     const barcode = prompt("Ingresa el código de barras manualmente:")
     if (barcode && barcode.trim()) {
+      console.log("[scanner] manual barcode:", barcode.trim())
       onScan(barcode.trim())
       handleClose()
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog
+      open={isOpen}
+      // IMPORTANT: aquí capturamos el booleano que pasa Dialog
+      onOpenChange={(open) => {
+        console.log("[Dialog] onOpenChange:", open)
+        // si el usuario cierra (open === false) hacemos la misma lógica que handleClose
+        if (!open) {
+          stopScanner()
+          onClose()
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -121,7 +159,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
             </Alert>
           )}
 
-          {isScanning && (
+          {isScanning ? (
             <div className="space-y-4">
               <video
                 ref={videoRef}
@@ -130,7 +168,6 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
                 playsInline
                 muted
               />
-
               <div className="text-center space-y-2">
                 <p className="text-sm text-muted-foreground">Apunta la cámara hacia el código de barras</p>
                 <div className="flex gap-2">
@@ -144,26 +181,24 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
                 </div>
               </div>
             </div>
-          )}
-
-          {!isScanning && !error && (
-            <div className="text-center space-y-4">
-              <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                <Icons.Camera />
-                <p className="text-sm text-muted-foreground mt-4">
-                  Presiona el botón para activar la cámara y escanear códigos de barras
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Button onClick={startScanner} className="w-full">
+          ) : (
+            !error && (
+              <div className="text-center space-y-4">
+                <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
                   <Icons.Camera />
-                  <span className="ml-2">Activar Cámara</span>
-                </Button>
-                <Button variant="outline" onClick={handleManualInput} className="w-full bg-transparent">
-                  Ingresar Código Manualmente
-                </Button>
+                  <p className="text-sm text-muted-foreground mt-4">Presiona el botón para activar la cámara y escanear</p>
+                </div>
+                <div className="space-y-2">
+                  <Button onClick={startScanner} className="w-full">
+                    <Icons.Camera />
+                    <span className="ml-2">Activar Cámara</span>
+                  </Button>
+                  <Button variant="outline" onClick={handleManualInput} className="w-full bg-transparent">
+                    Ingresar Código Manualmente
+                  </Button>
+                </div>
               </div>
-            </div>
+            )
           )}
         </div>
       </DialogContent>

@@ -5,8 +5,8 @@ import { Download, FileText, Printer, Share } from "lucide-react"
 
 export function ReportsHeader() {
   return (
-    <div className="flex items-center justify-between">
-      <div>
+    <div className="flex flex-col md:flex-row items-center justify-between">
+      <div className="text-center md:text-left">
         <h1 className="text-3xl font-bold text-foreground">Reportes y Análisis</h1>
         <p className="text-muted-foreground mt-1">Análisis detallado de ventas, inventario y rentabilidad</p>
       </div>

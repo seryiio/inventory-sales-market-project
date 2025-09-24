@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Product } from "@/lib/types";
+import { InventoryFilters } from "./inventory-filters";
 import {
   Table,
   TableBody,
@@ -49,13 +50,24 @@ type SortConfig = {
   direction: "asc" | "desc";
 };
 
+type Filters = {
+  searchTerm: string;
+  selectedStore: string;
+  selectedCategory: string;
+  stockFilter: string;
+};
+
 const SortIndicator = ({ direction }: { direction?: "asc" | "desc" }) => (
   <span className="inline-block ml-1 text-gray-400">
     {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "⇅"}
   </span>
 );
 
-export function InventoryTable() {
+interface Props {
+  filters: Filters;
+}
+
+export function InventoryTable({ filters }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -215,7 +227,6 @@ export function InventoryTable() {
       let aValue = a[key];
       let bValue = b[key];
 
-      // Si es store o category, obtener el nombre
       if (key === "store") aValue = a.store?.name || "";
       if (key === "category") aValue = a.category?.name || "";
 
@@ -230,6 +241,30 @@ export function InventoryTable() {
 
   if (loading)
     return <div className="text-center py-8">Cargando productos...</div>;
+
+  // ------------------------
+  // FILTRADO DINÁMICO
+  // ------------------------
+  const filteredProducts = products.filter((p) => {
+    const term = filters.searchTerm.toLowerCase();
+    const matchSearch =
+      p.name.toLowerCase().includes(term) ||
+      (p.barcode?.toLowerCase().includes(term) ?? false) ||
+      (p.sku?.toLowerCase().includes(term) ?? false);
+
+    const matchStore =
+      filters.selectedStore === "all" || p.store?.id === filters.selectedStore;
+    const matchCategory =
+      filters.selectedCategory === "all" ||
+      p.category?.id === filters.selectedCategory;
+    const matchStock =
+      filters.stockFilter === "all" ||
+      (filters.stockFilter === "low" && p.stock_quantity <= p.min_stock) ||
+      (filters.stockFilter === "out" && p.stock_quantity === 0) ||
+      (filters.stockFilter === "normal" && p.stock_quantity > p.min_stock);
+
+    return matchSearch && matchStore && matchCategory && matchStock;
+  });
 
   return (
     <>
@@ -291,7 +326,7 @@ export function InventoryTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.length === 0 ? (
+            {filteredProducts.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={10}
@@ -301,7 +336,7 @@ export function InventoryTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((product) => {
+              filteredProducts.map((product) => {
                 const stockStatus = getStockStatus(product);
                 return (
                   <TableRow key={product.id}>
@@ -340,18 +375,20 @@ export function InventoryTable() {
                     </TableCell>
                     <TableCell className="flex gap-2">
                       <Button
+                        style={{ color: "orange" }}
                         size="sm"
                         variant="outline"
                         onClick={() => startEditing(product)}
                       >
-                        <Icons.Edit className="h-4 w-4 stroke-orange-500" />
+                        <Icons.Edit />
                       </Button>
                       <Button
+                        style={{ color: "red" }}
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(product.id)}
                       >
-                        <Icons.Trash2 className="h-4 w-4 stroke-red-500" />
+                        <Icons.Trash2 />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -364,91 +401,85 @@ export function InventoryTable() {
 
       {/* Tabla Móvil */}
       <div className="block lg:hidden space-y-4">
-        {products.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No hay productos registrados
-          </div>
-        ) : (
-          products.map((product) => {
-            const stockStatus = getStockStatus(product);
-            return (
-              <Card key={product.id} className="p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">{product.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {product.supplier}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => startEditing(product)}
-                      >
-                        <Icons.Edit className="h-4 w-4 stroke-orange-500" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        <Icons.Trash2 className="h-4 w-4 stroke-red-500" />
-                      </Button>
+        {filteredProducts.map((product) => {
+          const stockStatus = getStockStatus(product);
+          return (
+            <Card key={product.id} className="p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">{product.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {product.supplier}
                     </div>
                   </div>
-                  <div>
-                    <Label>Tienda</Label>
-                    <Badge
+                  <div className="flex gap-2">
+                    <Button
+                      style={{ color: "orange" }}
+                      size="sm"
                       variant="outline"
-                      className={getStoreTypeColor(
-                        (product as any).store?.type
-                      )}
+                      onClick={() => startEditing(product)}
                     >
-                      {(product as any).store?.name}
-                    </Badge>
-                  </div>
-                  <div>
-                    <Label>Categoría</Label>
-                    <div>
-                      {(product as any).category?.name || "Sin categoría"}
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Stock</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {product.stock_quantity}
-                      </span>
-                      {product.stock_quantity <= product.min_stock && (
-                        <Icons.AlertTriangle />
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Precio</Label>
-                    <div>{formatCurrency(product.unit_price)}</div>
-                  </div>
-                  <div>
-                    <Label>Costo</Label>
-                    <div>{formatCurrency(product.cost_price)}</div>
-                  </div>
-                  <div>
-                    <Label>Fecha de Vencimiento</Label>
-                    <div>{product.expiry_date}</div>
-                  </div>
-                  <div>
-                    <Label>Estado</Label>
-                    <Badge variant={stockStatus.variant}>
-                      {stockStatus.label}
-                    </Badge>
+                      <Icons.Edit />
+                    </Button>
+                    <Button
+                      style={{ color: "red" }}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDelete(product.id)}
+                    >
+                      <Icons.Trash2 />
+                    </Button>
                   </div>
                 </div>
-              </Card>
-            );
-          })
-        )}
+                <div>
+                  <Label>Tienda</Label>
+                  <Badge
+                    variant="outline"
+                    className={getStoreTypeColor((product as any).store?.type)}
+                  >
+                    {(product as any).store?.name}
+                  </Badge>
+                </div>
+                <div>
+                  <Label>Categoría</Label>
+                  <div>
+                    {(product as any).category?.name || "Sin categoría"}
+                  </div>
+                </div>
+                <div>
+                  <Label>Stock</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      {product.stock_quantity}
+                    </span>
+                    {product.stock_quantity <= product.min_stock && (
+                      <Icons.AlertTriangle />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label>Precio</Label>
+                  <div>{formatCurrency(product.unit_price)}</div>
+                </div>
+                <div>
+                  <Label>Costo</Label>
+                  <div>{formatCurrency(product.cost_price)}</div>
+                </div>
+                <div>
+                  <Label>Fecha de Vencimiento</Label>
+                  <div>{product.expiry_date}</div>
+                </div>
+                <div>
+                  <Label>Estado</Label>
+                  <Badge variant={stockStatus.variant}>
+                    {stockStatus.label}
+                  </Badge>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Modal Edición */}
@@ -469,14 +500,12 @@ export function InventoryTable() {
               }}
               className="space-y-4"
             >
-              {/* Tienda y Categoría */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tienda *</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Tienda</Label>
                   <Select
                     value={selectedStore}
-                    onValueChange={setSelectedStore}
-                    required
+                    onValueChange={(val) => setSelectedStore(val)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar tienda" />
@@ -491,207 +520,194 @@ export function InventoryTable() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div>
                   <Label>Categoría</Label>
                   <Select
                     value={formData.category_id}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, category_id: value }))
+                    onValueChange={(val) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        category_id: val,
+                      }))
                     }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              {/* Nombre y Descripción */}
-              <div className="space-y-2">
-                <Label>Nombre del Producto *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  required
-                />
-              </div>
+                <div>
+                  <Label>Nombre</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label>Descripción</Label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  rows={3}
-                />
-              </div>
+                <div>
+                  <Label>Descripción</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
 
-              {/* Código de Barras y SKU */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Código de Barras</Label>
+                <div>
+                  <Label>Código de barras</Label>
                   <Input
                     value={formData.barcode}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         barcode: e.target.value,
                       }))
                     }
                   />
                 </div>
-                <div className="space-y-2">
+
+                <div>
                   <Label>SKU</Label>
                   <Input
                     value={formData.sku}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, sku: e.target.value }))
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        sku: e.target.value,
+                      }))
                     }
                   />
                 </div>
-              </div>
 
-              {/* Precios */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Precio de Venta *</Label>
+                <div>
+                  <Label>Precio</Label>
                   <Input
                     type="number"
-                    step="0.01"
-                    min="0"
                     value={formData.unit_price}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         unit_price: e.target.value,
                       }))
                     }
-                    required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Precio de Costo *</Label>
+
+                <div>
+                  <Label>Costo</Label>
                   <Input
                     type="number"
-                    step="0.01"
-                    min="0"
                     value={formData.cost_price}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         cost_price: e.target.value,
                       }))
                     }
-                    required
                   />
                 </div>
-              </div>
 
-              {/* Stock */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Stock Inicial *</Label>
+                <div>
+                  <Label>Stock</Label>
                   <Input
                     type="number"
-                    min="0"
                     value={formData.stock_quantity}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         stock_quantity: e.target.value,
                       }))
                     }
-                    required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Stock Mínimo</Label>
+
+                <div>
+                  <Label>Stock mínimo</Label>
                   <Input
                     type="number"
-                    min="0"
                     value={formData.min_stock}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         min_stock: e.target.value,
                       }))
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Stock Máximo</Label>
+
+                <div>
+                  <Label>Stock máximo</Label>
                   <Input
                     type="number"
-                    min="0"
                     value={formData.max_stock}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         max_stock: e.target.value,
                       }))
                     }
                   />
                 </div>
-              </div>
 
-              {/* Fecha de Vencimiento y Número de Lote */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Fecha de Vencimiento</Label>
+                <div>
+                  <Label>Fecha de vencimiento</Label>
                   <Input
                     type="date"
                     value={formData.expiry_date}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         expiry_date: e.target.value,
                       }))
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Número de Lote</Label>
+
+                <div>
+                  <Label>Número de lote</Label>
                   <Input
                     value={formData.batch_number}
                     onChange={(e) =>
-                      setFormData((prev) => ({
+                      setFormData((prev: any) => ({
                         ...prev,
                         batch_number: e.target.value,
                       }))
                     }
                   />
                 </div>
+
+                <div>
+                  <Label>Proveedor</Label>
+                  <Input
+                    value={formData.supplier}
+                    onChange={(e) =>
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        supplier: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
               </div>
 
-              {/* Proveedor */}
-              <div className="space-y-2">
-                <Label>Proveedor</Label>
-                <Input
-                  value={formData.supplier}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      supplier: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              {/* Botones */}
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-2 mt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -699,7 +715,7 @@ export function InventoryTable() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit">Guardar cambios</Button>
+                <Button type="submit">Guardar</Button>
               </div>
             </form>
           )}

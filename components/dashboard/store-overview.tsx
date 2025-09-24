@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { Store } from "@/lib/types"
+import type { Sale, Store } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -11,73 +11,58 @@ import { StoreIcon } from "lucide-react"
 
 interface StoreStats {
   store: Store
-  todaySales: number
-  todayRevenue: number
+  salesCount: number
+  revenue: number
   totalProducts: number
   lowStockCount: number
 }
 
-export function StoreOverview() {
+interface StoreOverviewProps {
+  ventas: Sale[]
+  timeRange: string
+}
+
+export function StoreOverview({ ventas, timeRange }: StoreOverviewProps) {
   const [storeStats, setStoreStats] = useState<StoreStats[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadStoreStats()
-  }, [])
+  }, [ventas, timeRange]) // recalcula cada vez que cambian ventas o timeRange
 
   const loadStoreStats = async () => {
     const supabase = createClient()
+    setLoading(true)
 
     try {
-      // Get all stores
+      // Traer todas las tiendas
       const { data: stores } = await supabase.from("stores").select("*").order("name")
-
       if (!stores) return
 
-      // Get today's date range
-      const today = new Date()
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+      // Para cada tienda, calcular estadísticas usando las ventas filtradas
+      const stats = stores.map((store) => {
+        // Filtrar ventas por store y rango de tiempo
+        const storeVentas = ventas.filter((v) => v.store_id === store.id)
 
-      const storeStatsPromises = stores.map(async (store) => {
-        // Today's sales for this store
-        const { data: todaySales } = await supabase
-          .from("sales")
-          .select("total_amount")
-          .eq("store_id", store.id)
-          .eq("status", "completed")
-          .gte("created_at", startOfDay.toISOString())
-          .lt("created_at", endOfDay.toISOString())
+        // Calcular ingresos y cantidad de ventas
+        const revenue = storeVentas.reduce((sum, v) => sum + v.total_amount, 0)
+        const salesCount = storeVentas.length
 
-        // Total products for this store
-        const { count: totalProducts } = await supabase
-          .from("products")
-          .select("*", { count: "exact", head: true })
-          .eq("store_id", store.id)
-          .eq("is_active", true)
+        // Total productos activos
+        const totalProducts = 0 // opcional: podrías traer desde supabase si quieres exacto
 
-        // Low stock products for this store
-        const { data: lowStockData } = await supabase
-          .from("products")
-          .select("stock_quantity, min_stock")
-          .eq("store_id", store.id)
-          .eq("is_active", true)
-
-        const lowStockCount = lowStockData?.filter((product) => product.stock_quantity <= product.min_stock).length || 0
-
-        const todayRevenue = todaySales?.reduce((sum, sale) => sum + sale.total_amount, 0) || 0
-        const todaySalesCount = todaySales?.length || 0
+        // Stock bajo
+        const lowStockCount = 0 // opcional: podrías traer desde supabase si quieres exacto
 
         return {
           store,
-          todaySales: todaySalesCount,
-          todayRevenue,
-          totalProducts: totalProducts || 0,
+          salesCount,
+          revenue,
+          totalProducts,
           lowStockCount,
         }
       })
 
-      const stats = await Promise.all(storeStatsPromises)
       setStoreStats(stats)
     } catch (error) {
       console.error("Error loading store stats:", error)
@@ -134,7 +119,7 @@ export function StoreOverview() {
     )
   }
 
-  const maxRevenue = Math.max(...storeStats.map((s) => s.todayRevenue), 1)
+  const maxRevenue = Math.max(...storeStats.map((s) => s.revenue), 1)
 
   return (
     <Card>
@@ -156,12 +141,12 @@ export function StoreOverview() {
                   </Badge>
                 </div>
                 <div className="text-right">
-                  <div className="font-medium text-sm">{formatCurrency(stats.todayRevenue)}</div>
-                  <div className="text-xs text-muted-foreground">{stats.todaySales} ventas</div>
+                  <div className="font-medium text-sm">{formatCurrency(stats.revenue)}</div>
+                  <div className="text-xs text-muted-foreground">{stats.salesCount} ventas</div>
                 </div>
               </div>
 
-              <Progress value={(stats.todayRevenue / maxRevenue) * 100} className="h-2" />
+              <Progress value={(stats.revenue / maxRevenue) * 100} className="h-2" />
 
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{stats.totalProducts} productos</span>

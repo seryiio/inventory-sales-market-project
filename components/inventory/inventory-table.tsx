@@ -208,7 +208,8 @@ export function InventoryTable() {
 
   const handleSort = (key: SortKey) => {
     let direction: "asc" | "desc" = "asc";
-    if (sortConfig?.key === key && sortConfig.direction === "asc") direction = "desc";
+    if (sortConfig?.key === key && sortConfig.direction === "asc")
+      direction = "desc";
 
     const sortedProducts = [...products].sort((a: any, b: any) => {
       let aValue = a[key];
@@ -410,12 +411,16 @@ export function InventoryTable() {
                   </div>
                   <div>
                     <Label>Categoría</Label>
-                    <div>{(product as any).category?.name || "Sin categoría"}</div>
+                    <div>
+                      {(product as any).category?.name || "Sin categoría"}
+                    </div>
                   </div>
                   <div>
                     <Label>Stock</Label>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{product.stock_quantity}</span>
+                      <span className="font-medium">
+                        {product.stock_quantity}
+                      </span>
                       {product.stock_quantity <= product.min_stock && (
                         <Icons.AlertTriangle />
                       )}
@@ -435,7 +440,9 @@ export function InventoryTable() {
                   </div>
                   <div>
                     <Label>Estado</Label>
-                    <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                    <Badge variant={stockStatus.variant}>
+                      {stockStatus.label}
+                    </Badge>
                   </div>
                 </div>
               </Card>
@@ -445,11 +452,15 @@ export function InventoryTable() {
       </div>
 
       {/* Modal Edición */}
-      <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
+      <Dialog
+        open={!!editingProduct}
+        onOpenChange={() => setEditingProduct(null)}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Producto</DialogTitle>
           </DialogHeader>
+
           {editingProduct && (
             <form
               onSubmit={(e) => {
@@ -458,9 +469,234 @@ export function InventoryTable() {
               }}
               className="space-y-4"
             >
-              {/* Aquí van los inputs del formulario (igual que antes) */}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setEditingProduct(null)}>
+              {/* Tienda y Categoría */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tienda *</Label>
+                  <Select
+                    value={selectedStore}
+                    onValueChange={setSelectedStore}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar tienda" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stores.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                          {store.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Categoría</Label>
+                  <Select
+                    value={formData.category_id}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, category_id: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Nombre y Descripción */}
+              <div className="space-y-2">
+                <Label>Nombre del Producto *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Descripción</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                />
+              </div>
+
+              {/* Código de Barras y SKU */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Código de Barras</Label>
+                  <Input
+                    value={formData.barcode}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        barcode: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SKU</Label>
+                  <Input
+                    value={formData.sku}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, sku: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Precios */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Precio de Venta *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.unit_price}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        unit_price: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Precio de Costo *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.cost_price}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        cost_price: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Stock */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Stock Inicial *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={formData.stock_quantity}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        stock_quantity: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Stock Mínimo</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={formData.min_stock}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        min_stock: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Stock Máximo</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={formData.max_stock}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        max_stock: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Fecha de Vencimiento y Número de Lote */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Fecha de Vencimiento</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        expiry_date: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número de Lote</Label>
+                  <Input
+                    value={formData.batch_number}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        batch_number: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Proveedor */}
+              <div className="space-y-2">
+                <Label>Proveedor</Label>
+                <Input
+                  value={formData.supplier}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      supplier: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingProduct(null)}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit">Guardar cambios</Button>

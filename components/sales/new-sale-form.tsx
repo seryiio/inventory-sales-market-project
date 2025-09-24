@@ -367,9 +367,9 @@ export function NewSaleForm() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                  <SelectItem value="tarjeta">Yape</SelectItem>
+                  <SelectItem value="tarjeta">Plin</SelectItem>
                   <SelectItem value="transferencia">Transferencia</SelectItem>
-                  <SelectItem value="credito">Crédito</SelectItem>
                 </SelectContent>
               </Select>
             </div>

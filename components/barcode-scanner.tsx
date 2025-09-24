@@ -1,133 +1,117 @@
-"use client";
+"use client"
 
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Icons } from "@/components/icons";
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import { useEffect, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Icons } from "@/components/icons"
+import { BrowserMultiFormatReader } from "@zxing/browser"
 
 interface BarcodeScannerProps {
-  onScan: (barcode: string) => void;
-  isOpen: boolean;
-  onClose: () => void;
+  onScan: (barcode: string) => void
+  isOpen: boolean
+  onClose: () => void
 }
 
-export function BarcodeScanner({
-  onScan,
-  isOpen,
-  onClose,
-}: BarcodeScannerProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const cancelRef = useRef<(() => void) | null>(null);
-  const scannedRef = useRef<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
+export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
+  const cancelRef = useRef<(() => void) | null>(null)
+  const scannedRef = useRef<boolean>(false)
   const scannedCodesRef = useRef<Set<string>>(new Set())
-
+  const [error, setError] = useState<string | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
 
   useEffect(() => {
-    if (!isOpen) stopScanner();
-    else scannedRef.current = false; // resetear al abrir
-  }, [isOpen]);
+    if (!isOpen) stopScanner()
+  }, [isOpen])
 
   const startScanner = async () => {
-    setError(null);
-    scannedRef.current = false;
-    try {
-      setIsScanning(true);
+    setError(null)
+    scannedRef.current = false
+    scannedCodesRef.current.clear()
 
+    try {
+      setIsScanning(true)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
-      });
+      })
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current
-          .play()
-          .catch((e) => console.warn("video.play() fallo:", e));
+        videoRef.current.srcObject = stream
+        await videoRef.current.play().catch((e) => console.warn("video.play() fallo:", e))
       }
 
-      const scanner = new BrowserMultiFormatReader();
-      scannerRef.current = scanner;
+      const scanner = new BrowserMultiFormatReader()
+      scannerRef.current = scanner
 
       cancelRef.current = await scanner.decodeFromVideoDevice(
         undefined,
         videoRef.current!,
         (result, err) => {
           if (result) {
-            const code = result.getText();
+            const code = result.getText()
             if (!scannedCodesRef.current.has(code)) {
-              scannedCodesRef.current.add(code);
-              console.log("[scanner] resultado:", code);
+              scannedCodesRef.current.add(code)
+              console.log("[scanner] resultado:", code)
 
-              stopScanner();
-              onScan(code);
-              onClose();
+              scannedRef.current = true
+              stopScanner() // Detener cámara y scanner
+              onScan(code)  // Agregar producto
+              // NO cerramos el modal automáticamente
             }
           }
-
           if (err && !(err.name === "NotFoundException")) {
-            console.error("[scanner] decode error:", err);
+            console.error("[scanner] decode error:", err)
           }
         }
-      );
+      )
     } catch (err) {
-      console.error("start error:", err);
-      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.");
-      setIsScanning(false);
+      console.error("start error:", err)
+      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.")
+      setIsScanning(false)
     }
-  };
+  }
 
   const stopScanner = () => {
-    setIsScanning(false);
-
+    setIsScanning(false)
     try {
       if (cancelRef.current) {
-        cancelRef.current();
-        cancelRef.current = null;
+        cancelRef.current()
+        cancelRef.current = null
       }
 
-      scannerRef.current = null;
+      scannerRef.current = null
 
       if (videoRef.current && videoRef.current.srcObject) {
-        const s = videoRef.current.srcObject as MediaStream;
-        s.getTracks().forEach((t) => t.stop());
-        videoRef.current.srcObject = null;
+        const s = videoRef.current.srcObject as MediaStream
+        s.getTracks().forEach((t) => t.stop())
+        videoRef.current.srcObject = null
       }
     } catch (e) {
-      console.warn("[scanner] stopScanner unexpected error:", e);
+      console.warn("[scanner] stopScanner unexpected error:", e)
     } finally {
-      scannedRef.current = false;
-      scannedCodesRef.current.clear();
+      scannedRef.current = false
+      scannedCodesRef.current.clear()
     }
-  };
+  }
 
   const handleManualInput = () => {
-    const barcode = prompt("Ingresa el código de barras manualmente:");
+    const barcode = prompt("Ingresa el código de barras manualmente:")
     if (barcode && barcode.trim()) {
-      console.log("[scanner] manual barcode:", barcode.trim());
-      onScan(barcode.trim());
-      stopScanner();
-      onClose();
+      console.log("[scanner] manual barcode:", barcode.trim())
+      onScan(barcode.trim())
+      stopScanner()
+      // NO cerramos el modal automáticamente
     }
-  };
+  }
 
   return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          stopScanner();
-          onClose();
-        }
+        if (!open) stopScanner()
       }}
     >
       <DialogContent className="sm:max-w-md">
@@ -161,10 +145,7 @@ export function BarcodeScanner({
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      stopScanner();
-                      onClose();
-                    }}
+                    onClick={() => stopScanner()}
                     className="flex-1 bg-transparent"
                   >
                     <Icons.X />
@@ -208,5 +189,5 @@ export function BarcodeScanner({
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

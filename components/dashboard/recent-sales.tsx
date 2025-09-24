@@ -1,29 +1,31 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
-import type { Sale } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { ShoppingCart, Eye } from "lucide-react"
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Sale } from "@/lib/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { ShoppingCart, Eye } from "lucide-react";
+import Link from "next/link"
 
 export function RecentSales() {
-  const [recentSales, setRecentSales] = useState<Sale[]>([])
-  const [loading, setLoading] = useState(true)
+  const [recentSales, setRecentSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadRecentSales()
-  }, [])
+    loadRecentSales();
+  }, []);
 
   const loadRecentSales = async () => {
-    const supabase = createClient()
+    const supabase = createClient();
 
     try {
       const { data } = await supabase
         .from("sales")
-        .select(`
+        .select(
+          `
           *,
           store:stores(name, type),
           sale_items(
@@ -31,38 +33,45 @@ export function RecentSales() {
             quantity,
             product:products(name)
           )
-        `)
+        `
+        )
         .order("created_at", { ascending: false })
-        .limit(5)
+        .limit(5);
 
-      setRecentSales(data || [])
+      setRecentSales(data || []);
     } catch (error) {
-      console.error("Error loading recent sales:", error)
+      console.error("Error loading recent sales:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
         return (
-          <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+          <Badge
+            variant="default"
+            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+          >
             Completada
           </Badge>
-        )
+        );
       case "pending":
         return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+          >
             Pendiente
           </Badge>
-        )
+        );
       case "cancelled":
-        return <Badge variant="destructive">Cancelada</Badge>
+        return <Badge variant="destructive">Cancelada</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -83,7 +92,7 @@ export function RecentSales() {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -103,34 +112,53 @@ export function RecentSales() {
         ) : (
           <div className="space-y-4">
             {recentSales.map((sale) => (
-              <div key={sale.id} className="flex items-center justify-between p-3 border rounded-lg">
+              <div
+                key={sale.id}
+                className="flex items-center justify-between p-3 border rounded-lg"
+              >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm">{sale.sale_number}</span>
+                    <span className="font-medium text-sm">
+                      {sale.sale_number}
+                    </span>
                     {getStatusBadge(sale.status)}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {sale.customer_name || "Cliente general"} • {(sale as any).store?.name}
+                    {sale.customer_name || "Cliente general"} •{" "}
+                    {(sale as any).store?.name}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {(sale as any).sale_items?.length || 0} productos • {formatDate(sale.created_at)}
+                    {(sale as any).sale_items?.length || 0} productos •{" "}
+                    {formatDate(sale.created_at)}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-medium">{formatCurrency(sale.total_amount)}</div>
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                  <div className="font-medium">
+                    {formatCurrency(sale.total_amount)}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                  >
                     <Eye className="h-3 w-3 mr-1" />
                     Ver
                   </Button>
                 </div>
               </div>
             ))}
-            <Button variant="outline" className="w-full bg-transparent" size="sm">
-              Ver todas las ventas
-            </Button>
+            <Link href="/sales">
+              <Button
+                variant="outline"
+                className="w-full bg-transparent"
+                size="sm"
+              >
+                Ver todas las ventas
+              </Button>
+            </Link>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

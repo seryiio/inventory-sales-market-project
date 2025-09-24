@@ -23,7 +23,6 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
 
   useEffect(() => {
     if (!isOpen) stopScanner()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const startScanner = async () => {
@@ -33,13 +32,13 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
       setIsScanning(true)
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: "environment" },
         audio: false,
       })
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play().catch((e) => console.warn("[scanner] video.play() fallo:", e))
+        await videoRef.current.play().catch((e) => console.warn("video.play() fallo:", e))
       }
 
       const scanner = new BrowserMultiFormatReader()
@@ -48,30 +47,23 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
       cancelRef.current = await scanner.decodeFromVideoDevice(
         undefined,
         videoRef.current!,
-        async (result, err) => {
-          if (result) {
-            if (scannedRef.current) return
+        (result, err) => {
+          if (result && !scannedRef.current) {
             scannedRef.current = true
-
             console.log("[scanner] resultado:", result.getText())
 
-            // 👉 notificamos al padre
+            stopScanner()
             onScan(result.getText())
-
-            // ⚠️ NO cerramos el modal automáticamente
-            // reset para permitir escanear más de un producto
-            scannedRef.current = false
+            onClose()
           }
           if (err && !(err.name === "NotFoundException")) {
             console.error("[scanner] decode error:", err)
           }
         }
       )
-
-      console.log("[scanner] started")
-    } catch (err: any) {
-      console.error("[scanner] start error:", err)
-      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS y que el navegador permita acceder.")
+    } catch (err) {
+      console.error("start error:", err)
+      setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.")
       setIsScanning(false)
     }
   }
@@ -85,6 +77,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
         cancelRef.current()
         cancelRef.current = null
       }
+
       scannerRef.current = null
 
       if (videoRef.current && videoRef.current.srcObject) {
@@ -104,6 +97,8 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
     if (barcode && barcode.trim()) {
       console.log("[scanner] manual barcode:", barcode.trim())
       onScan(barcode.trim())
+      stopScanner()
+      onClose()
     }
   }
 
@@ -111,6 +106,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
+        console.log("[Dialog] onOpenChange:", open)
         if (!open) {
           stopScanner()
           onClose()
@@ -142,13 +138,26 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
                 muted
               />
               <div className="text-center space-y-2">
-                <p className="text-sm text-muted-foreground">Apunta la cámara hacia el código de barras</p>
+                <p className="text-sm text-muted-foreground">
+                  Apunta la cámara hacia el código de barras
+                </p>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => { stopScanner(); onClose(); }} className="flex-1 bg-transparent">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      stopScanner()
+                      onClose()
+                    }}
+                    className="flex-1 bg-transparent"
+                  >
                     <Icons.X />
-                    <span className="ml-2">Cerrar</span>
+                    <span className="ml-2">Cancelar</span>
                   </Button>
-                  <Button variant="outline" onClick={handleManualInput} className="flex-1 bg-transparent">
+                  <Button
+                    variant="outline"
+                    onClick={handleManualInput}
+                    className="flex-1 bg-transparent"
+                  >
                     Ingresar Manual
                   </Button>
                 </div>
@@ -159,14 +168,20 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
               <div className="text-center space-y-4">
                 <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
                   <Icons.Camera />
-                  <p className="text-sm text-muted-foreground mt-4">Presiona el botón para activar la cámara y escanear</p>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Presiona el botón para activar la cámara y escanear
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Button onClick={startScanner} className="w-full">
                     <Icons.Camera />
                     <span className="ml-2">Activar Cámara</span>
                   </Button>
-                  <Button variant="outline" onClick={handleManualInput} className="w-full bg-transparent">
+                  <Button
+                    variant="outline"
+                    onClick={handleManualInput}
+                    className="w-full bg-transparent"
+                  >
                     Ingresar Código Manualmente
                   </Button>
                 </div>

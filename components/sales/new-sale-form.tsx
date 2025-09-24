@@ -159,9 +159,87 @@ export function NewSaleForm() {
     }
   };
 
-  const handleBarcodeScanned = (barcode: string) => {
-    console.log("[v0] Barcode recibido del escáner:", barcode);
-    addProductToSale(barcode);
+  let processingBarcode = false; // lock global
+
+  const handleBarcodeScanned = async (barcode: string) => {
+    if (processingBarcode) return; // evita múltiples ejecuciones simultáneas
+    processingBarcode = true;
+
+    try {
+      const trimmedBarcode = barcode.trim();
+      if (!trimmedBarcode || !selectedStore) return;
+
+      const supabase = createClient();
+      const { data: product, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("store_id", selectedStore)
+        .eq("is_active", true)
+        .or(
+          `barcode.eq.${trimmedBarcode},sku.eq.${trimmedBarcode},name.ilike.%${trimmedBarcode}%`
+        )
+        .single();
+
+      if (error || !product) {
+        toast({
+          title: "Producto no encontrado",
+          description:
+            "No se encontró un producto con ese código en la tienda seleccionada",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (product.stock_quantity <= 0) {
+        toast({
+          title: "Sin stock",
+          description: "Este producto no tiene stock disponible",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setBarcodeInput(""); // limpiar input antes de actualizar estado
+
+      setSaleItems((prevItems) => {
+        const index = prevItems.findIndex(
+          (item) => item.product.id === product.id
+        );
+
+        if (index >= 0) {
+          const updated = [...prevItems];
+          const currentQuantity = updated[index].quantity;
+
+          if (currentQuantity >= product.stock_quantity) {
+            toast({
+              title: "Stock insuficiente",
+              description: `Solo hay ${product.stock_quantity} unidades disponibles`,
+              variant: "destructive",
+            });
+            return prevItems;
+          }
+
+          updated[index] = {
+            ...updated[index],
+            quantity: currentQuantity + 1,
+            total_price: (currentQuantity + 1) * product.unit_price,
+          };
+          return updated;
+        } else {
+          return [
+            ...prevItems,
+            {
+              product,
+              quantity: 1,
+              unit_price: product.unit_price,
+              total_price: product.unit_price,
+            },
+          ];
+        }
+      });
+    } finally {
+      processingBarcode = false; // liberar lock
+    }
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {

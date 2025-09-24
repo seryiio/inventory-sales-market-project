@@ -39,7 +39,7 @@ export default function RootLayout({
           <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
             <Navigation />
             <main className="flex-1 w-full overflow-y-auto">
-              <div className="w-full mx-auto px-4 py-4 sm:px-6 lg:px-8">{children}</div>
+              <div className="w-full mx-auto">{children}</div>
             </main>
           </div>
         </Suspense>

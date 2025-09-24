@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -14,53 +14,45 @@ interface BarcodeScannerProps {
 }
 
 export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps) {
-  const [isScanning, setIsScanning] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
   const cancelRef = useRef<(() => void) | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
-      checkCameraPermission()
+      startScanner()
     } else {
-      stopScanning()
+      stopScanner()
     }
-    return () => {
-      stopScanning()
-    }
+
+    return () => stopScanner()
   }, [isOpen])
 
-  const checkCameraPermission = async () => {
+  const startScanner = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      setHasPermission(true)
-      stream.getTracks().forEach((track) => track.stop()) // liberamos el stream de prueba
-    } catch (err) {
-      console.error("Camera permission error:", err)
-      setHasPermission(false)
-      setError("No se pudo acceder a la cámara. Verifica los permisos.")
-    }
-  }
-
-  const startScanning = async () => {
-    if (!hasPermission) {
-      await checkCameraPermission()
-      if (!hasPermission) return
-    }
-
-    try {
-      setIsScanning(true)
       setError(null)
+      setIsScanning(true)
+
+      // debug: listar cámaras
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      console.log("Dispositivos disponibles:", devices)
+
+      // pedir cámara trasera
+      const constraints = { video: { facingMode: "environment" } }
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play().catch((e) => console.error("No se pudo reproducir video:", e))
+      }
 
       const scanner = new BrowserMultiFormatReader()
       scannerRef.current = scanner
 
-      // decodeFromVideoDevice devuelve una función de cancelación
       cancelRef.current = await scanner.decodeFromVideoDevice(
-        undefined, // usa cámara trasera si está disponible
+        undefined,
         videoRef.current!,
         (result, err) => {
           if (result) {
@@ -74,26 +66,33 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
         }
       )
     } catch (err) {
-      console.error("Error starting scanner:", err)
-      setError("Error al iniciar el escáner.")
+      console.error("Error accediendo a la cámara:", err)
+      setError("No se pudo iniciar la cámara. Verifica permisos.")
       setIsScanning(false)
     }
   }
 
-  const stopScanning = () => {
+  const stopScanner = () => {
+    setIsScanning(false)
+
     if (cancelRef.current) {
-      cancelRef.current() // ✅ detiene la cámara y el decoder
+      cancelRef.current()
       cancelRef.current = null
     }
-    scannerRef.current = null
-    if (videoRef.current) {
+
+    if (scannerRef.current) {
+      scannerRef.current = null
+    }
+
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach((track) => track.stop())
       videoRef.current.srcObject = null
     }
-    setIsScanning(false)
   }
 
   const handleClose = () => {
-    stopScanning()
+    stopScanner()
     onClose()
   }
 
@@ -122,31 +121,46 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
             </Alert>
           )}
 
-          {hasPermission && !isScanning && (
-            <div className="text-center space-y-4">
-              <Button onClick={startScanning} className="w-full">
-                <Icons.Camera />
-                <span className="ml-2">Activar Cámara</span>
-              </Button>
-              <Button variant="outline" onClick={handleManualInput} className="w-full bg-transparent">
-                Ingresar Código Manualmente
-              </Button>
-            </div>
-          )}
-
           {isScanning && (
             <div className="space-y-4">
               <video
                 ref={videoRef}
                 className="w-full h-64 bg-black rounded-lg object-cover"
+                autoPlay
                 playsInline
                 muted
               />
+
               <div className="text-center space-y-2">
-                <p className="text-sm text-muted-foreground">Apunta la cámara hacia el código</p>
-                <Button variant="outline" onClick={stopScanning} className="w-full bg-transparent">
-                  <Icons.X />
-                  <span className="ml-2">Cancelar</span>
+                <p className="text-sm text-muted-foreground">Apunta la cámara hacia el código de barras</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={stopScanner} className="flex-1 bg-transparent">
+                    <Icons.X />
+                    <span className="ml-2">Cancelar</span>
+                  </Button>
+                  <Button variant="outline" onClick={handleManualInput} className="flex-1 bg-transparent">
+                    Ingresar Manual
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isScanning && !error && (
+            <div className="text-center space-y-4">
+              <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                <Icons.Camera />
+                <p className="text-sm text-muted-foreground mt-4">
+                  Presiona el botón para activar la cámara y escanear códigos de barras
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Button onClick={startScanner} className="w-full">
+                  <Icons.Camera />
+                  <span className="ml-2">Activar Cámara</span>
+                </Button>
+                <Button variant="outline" onClick={handleManualInput} className="w-full bg-transparent">
+                  Ingresar Código Manualmente
                 </Button>
               </div>
             </div>

@@ -461,7 +461,9 @@ export function InventoryTable({ filters }: Props) {
                 </div>
                 <div>
                   <Label>Tienda</Label>
-                  <div>{(product as any).store?.name || "Sin tienda"}</div>
+                  <Badge>
+                    <div>{(product as any).store?.name || "Sin tienda"}</div>
+                  </Badge>
                 </div>
                 <div>
                   <Label>Categoría</Label>

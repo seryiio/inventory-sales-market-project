@@ -62,94 +62,75 @@ export function NewSaleForm() {
   };
 
   // Función centralizada para agregar productos (por barcode o producto directo)
-  const addProductToSale = (barcodeOrProduct: string | Product) => {
+  const addProductToSale = async (barcodeOrProduct: string | Product) => {
     const supabase = createClient();
 
-    if (typeof barcodeOrProduct === "string") {
-      const barcode = barcodeOrProduct.trim();
-      if (!barcode || !selectedStore) return;
+    if (!selectedStore) return;
 
-      supabase
-        .from("products")
-        .select("*")
-        .eq("store_id", selectedStore)
-        .eq("is_active", true)
-        .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
-        .single()
-        .then(({ data: product, error }) => {
-          if (error || !product) {
-            toast({
-              title: "Producto no encontrado",
-              description:
-                "No se encontró un producto con ese código en la tienda seleccionada",
-              variant: "destructive",
-            });
-            return;
-          }
+    // Lock temporal para evitar doble agregado
+    let processing = false;
+    if (processing) return;
+    processing = true;
 
-          if (product.stock_quantity <= 0) {
-            toast({
-              title: "Sin stock",
-              description: "Este producto no tiene stock disponible",
-              variant: "destructive",
-            });
-            return;
-          }
+    try {
+      let product: Product | null = null;
 
-          setSaleItems((prevItems) => {
-            const existingIndex = prevItems.findIndex(
-              (item) => item.product.id === product.id
-            );
+      if (typeof barcodeOrProduct === "string") {
+        const barcode = barcodeOrProduct.trim();
+        if (!barcode) return;
 
-            if (existingIndex >= 0) {
-              const updatedItems = [...prevItems];
-              const currentQuantity = updatedItems[existingIndex].quantity;
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("store_id", selectedStore)
+          .eq("is_active", true)
+          .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
+          .single();
 
-              if (currentQuantity >= product.stock_quantity) {
-                toast({
-                  title: "Stock insuficiente",
-                  description: `Solo hay ${product.stock_quantity} unidades disponibles`,
-                  variant: "destructive",
-                });
-                return prevItems;
-              }
-
-              updatedItems[existingIndex] = {
-                ...updatedItems[existingIndex],
-                quantity: currentQuantity + 1,
-                total_price: (currentQuantity + 1) * product.unit_price,
-              };
-              return updatedItems;
-            } else {
-              return [
-                ...prevItems,
-                {
-                  product,
-                  quantity: 1,
-                  unit_price: product.unit_price,
-                  total_price: product.unit_price,
-                },
-              ];
-            }
+        if (error || !data) {
+          toast({
+            title: "Producto no encontrado",
+            description:
+              "No se encontró un producto con ese código en la tienda seleccionada",
+            variant: "destructive",
           });
+          return;
+        }
 
-          setBarcodeInput(""); // Limpiar input solo después de agregar
+        product = data;
+      } else {
+        product = barcodeOrProduct;
+      }
+
+      if (!product) return;
+
+      if (product.stock_quantity <= 0) {
+        toast({
+          title: "Sin stock",
+          description: "Este producto no tiene stock disponible",
+          variant: "destructive",
         });
-    } else {
-      const product = barcodeOrProduct;
+        return;
+      }
+
+      // Limpiar input antes de actualizar el estado
+      setBarcodeInput("");
+
       setSaleItems((prevItems) => {
         const existingIndex = prevItems.findIndex(
-          (item) => item.product.id === product.id
+          (item) => item.product.id === product!.id
         );
 
         if (existingIndex >= 0) {
           const updatedItems = [...prevItems];
           const currentQuantity = updatedItems[existingIndex].quantity;
 
-          if (currentQuantity >= product.stock_quantity) {
+          if (currentQuantity >= product!.stock_quantity) {
             toast({
               title: "Stock insuficiente",
-              description: `Solo hay ${product.stock_quantity} unidades disponibles`,
+              description: `Solo hay ${
+                product!.stock_quantity
+              } unidades disponibles`,
               variant: "destructive",
             });
             return prevItems;
@@ -158,7 +139,7 @@ export function NewSaleForm() {
           updatedItems[existingIndex] = {
             ...updatedItems[existingIndex],
             quantity: currentQuantity + 1,
-            total_price: (currentQuantity + 1) * product.unit_price,
+            total_price: (currentQuantity + 1) * product!.unit_price,
           };
           return updatedItems;
         } else {
@@ -173,8 +154,8 @@ export function NewSaleForm() {
           ];
         }
       });
-
-      setBarcodeInput("");
+    } finally {
+      processing = false;
     }
   };
 

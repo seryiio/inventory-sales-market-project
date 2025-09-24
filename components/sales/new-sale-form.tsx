@@ -160,10 +160,12 @@ export function NewSaleForm() {
       if (existingIndex >= 0) {
         const updatedItems = [...prevItems];
         const item = updatedItems[existingIndex];
+
         if (item.quantity < item.product.stock_quantity) {
           item.quantity += 1;
           item.total_price = item.quantity * item.unit_price;
         }
+
         return updatedItems;
       }
 
@@ -469,149 +471,218 @@ export function NewSaleForm() {
         </CardContent>
       </Card>
 
-      {/* Productos en venta */}
+      {/* Tabla Desktop */}
       {saleItems.length > 0 && (
-        <>
-          {/* Desktop Table */}
-          <div className="hidden lg:block rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {saleItems.map((item) => (
-                  <TableRow key={item.product.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium">{item.product.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Stock: {item.product.stock_quantity} unidades
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatCurrency(item.unit_price)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            updateQuantity(item.product.id, item.quantity - 1)
-                          }
-                          className="h-8 w-8 p-0"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            updateQuantity(item.product.id, item.quantity + 1)
-                          }
-                          className="h-8 w-8 p-0"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{formatCurrency(item.total_price)}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeItem(item.product.id)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+        <div className="hidden lg:block">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">
+                Productos en la Venta
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[200px]">Producto</TableHead>
+                      <TableHead className="min-w-[100px]">Precio</TableHead>
+                      <TableHead className="min-w-[120px]">Cantidad</TableHead>
+                      <TableHead className="min-w-[100px]">Total</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {saleItems.map((item) => (
+                      <TableRow key={item.product.id}>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-medium">{item.product.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Stock: {item.product.stock_quantity} unidades
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatCurrency(item.unit_price)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateQuantity(item.product.id, item.quantity - 1)
+                              }
+                              className="h-8 w-8 p-0"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-8 text-center text-sm">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                updateQuantity(item.product.id, item.quantity + 1)
+                              }
+                              className="h-8 w-8 p-0"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(item.total_price)}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeItem(item.product.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
-          {/* Mobile Cards */}
-          <div className="lg:hidden space-y-4">
-            {saleItems.map((item) => (
-              <Card key={item.product.id}>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="space-y-1">
-                      <div className="font-medium">{item.product.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Stock: {item.product.stock_quantity} unidades
-                      </div>
+              {/* Totales Desktop */}
+              <Separator className="my-4" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="discount" className="text-sm">Descuento</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={subtotal}
+                    value={discountAmount}
+                    onChange={(e) =>
+                      setDiscountAmount(Number.parseFloat(e.target.value) || 0)
+                    }
+                    className="w-32"
+                  />
+                  {discountAmount > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      -{formatCurrency(discountAmount)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-base sm:text-lg">
+                    <span>Subtotal:</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg sm:text-xl font-bold">
+                    <span>Total:</span>
+                    <span>{formatCurrency(total)}</span>
+                  </div>
+
+                  <Button
+                    onClick={completeSale}
+                    disabled={loading || saleItems.length === 0}
+                    className="w-full sm:w-auto"
+                    size="lg"
+                  >
+                    {loading ? "Procesando..." : "Completar Venta"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Cards Mobile */}
+      {saleItems.length > 0 && (
+        <div className="lg:hidden">
+          <Card>
+            <CardContent className="space-y-4">
+              {saleItems.map((item) => (
+                <div
+                  key={item.product.id}
+                  className="grid grid-cols-2 gap-4 items-center relative"
+                >
+                  <div className="space-y-1">
+                    <div className="font-medium">{item.product.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Stock: {item.product.stock_quantity} unidades
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(item.product.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Precio:</span>
-                    <span className="font-medium">{formatCurrency(item.unit_price)}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Cantidad:</span>
-                    <div className="flex items-center gap-1">
+                  <div className="text-right">
+                    <div>{formatCurrency(item.unit_price)}</div>
+                    <div className="flex justify-end items-center gap-1 mt-1">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                        className="h-7 w-7 p-0"
+                        onClick={() =>
+                          updateQuantity(item.product.id, item.quantity - 1)
+                        }
+                        className="h-8 w-8 p-0"
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-8 text-center">{item.quantity}</span>
+                      <span className="w-8 text-center text-sm">{item.quantity}</span>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                        className="h-7 w-7 p-0"
+                        onClick={() =>
+                          updateQuantity(item.product.id, item.quantity + 1)
+                        }
+                        className="h-8 w-8 p-0"
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
+                    <div className="font-medium mt-1">{formatCurrency(item.total_price)}</div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeItem(item.product.id)}
+                    className="h-8 w-8 p-0 absolute right-2 top-2"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Total:</span>
-                    <span className="font-medium">{formatCurrency(item.total_price)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+              <Separator className="my-4" />
 
-            {/* Totales y completar venta para móviles */}
-            <Card>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center text-base">
+              <div className="space-y-2">
+                <div className="flex justify-between text-base">
                   <span>Subtotal:</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
 
-                {discountAmount > 0 && (
-                  <div className="flex justify-between items-center text-sm text-muted-foreground">
-                    <span>Descuento:</span>
-                    <span>-{formatCurrency(discountAmount)}</span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center gap-2">
+                  <Label htmlFor="discount" className="text-sm">Descuento</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={subtotal}
+                    value={discountAmount}
+                    onChange={(e) =>
+                      setDiscountAmount(Number.parseFloat(e.target.value) || 0)
+                    }
+                    className="w-24"
+                  />
+                  {discountAmount > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      -{formatCurrency(discountAmount)}
+                    </span>
+                  )}
+                </div>
 
-                <div className="flex justify-between items-center text-lg font-bold">
+                <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
@@ -624,10 +695,10 @@ export function NewSaleForm() {
                 >
                   {loading ? "Procesando..." : "Completar Venta"}
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Escáner de códigos */}

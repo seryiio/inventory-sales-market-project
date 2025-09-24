@@ -8,7 +8,7 @@ import { Icons } from "@/components/icons"
 import { BrowserMultiFormatReader } from "@zxing/browser"
 
 interface BarcodeScannerProps {
-  onScan: (barcode: string) => void
+  onScan: (barcode: string) => Promise<void> | void
   isOpen: boolean
   onClose: () => void
 }
@@ -17,7 +17,8 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
   const cancelRef = useRef<(() => void) | null>(null)
-  const scannedRef = useRef<boolean>(false)
+  const scannedRef = useRef(false)
+  const processingRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
 
@@ -28,6 +29,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   const startScanner = async () => {
     setError(null)
     scannedRef.current = false
+    processingRef.current = false
     try {
       setIsScanning(true)
 
@@ -47,15 +49,22 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
       cancelRef.current = await scanner.decodeFromVideoDevice(
         undefined,
         videoRef.current!,
-        (result, err) => {
-          if (result && !scannedRef.current) {
+        async (result, err) => {
+          if (result && !scannedRef.current && !processingRef.current) {
             scannedRef.current = true
-            console.log("[scanner] resultado:", result.getText())
+            processingRef.current = true
 
-            stopScanner()
-            onScan(result.getText())
-            onClose()
+            try {
+              const code = result.getText()
+              console.log("[scanner] resultado:", code)
+              stopScanner()
+              await onScan(code)
+              onClose()
+            } finally {
+              processingRef.current = false
+            }
           }
+
           if (err && !(err.name === "NotFoundException")) {
             console.error("[scanner] decode error:", err)
           }
@@ -69,7 +78,6 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   }
 
   const stopScanner = () => {
-    console.log("[scanner] stopScanner called")
     setIsScanning(false)
 
     try {
@@ -89,6 +97,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
       console.warn("[scanner] stopScanner unexpected error:", e)
     } finally {
       scannedRef.current = false
+      processingRef.current = false
     }
   }
 
@@ -106,7 +115,6 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        console.log("[Dialog] onOpenChange:", open)
         if (!open) {
           stopScanner()
           onClose()

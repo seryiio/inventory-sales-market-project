@@ -80,9 +80,10 @@ export function NewSaleForm() {
   }
 
   const handleBarcodeScanned = (barcode: string) => {
-    console.log("[v0] Barcode received from scanner:", barcode)
+    console.log("[v0] Barcode recibido del escáner:", barcode)
     setBarcodeInput(barcode)
     searchProduct(barcode)
+    setShowScanner(false) // 🔽 cerrar cámara después de escanear
   }
 
   const addProductToSale = (product: Product) => {
@@ -197,7 +198,6 @@ export function NewSaleForm() {
       }))
 
       const { error: itemsError } = await supabase.from("sale_items").insert(saleItemsData)
-
       if (itemsError) throw itemsError
 
       for (const item of saleItems) {

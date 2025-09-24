@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card } from "../ui/card";
 
 export function InventoryTable() {
   const [products, setProducts] = useState<Product[]>([]);

@@ -18,8 +18,9 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   const [error, setError] = useState<string | null>(null)
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
+  const cancelRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -36,7 +37,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       setHasPermission(true)
-      stream.getTracks().forEach((track) => track.stop()) // liberamos el test stream
+      stream.getTracks().forEach((track) => track.stop()) // liberamos el stream de prueba
     } catch (err) {
       console.error("Camera permission error:", err)
       setHasPermission(false)
@@ -57,8 +58,9 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
       const scanner = new BrowserMultiFormatReader()
       scannerRef.current = scanner
 
-      await scanner.decodeFromVideoDevice(
-        undefined, // usa la cámara trasera por defecto
+      // decodeFromVideoDevice devuelve una función de cancelación
+      cancelRef.current = await scanner.decodeFromVideoDevice(
+        undefined, // usa cámara trasera si está disponible
         videoRef.current!,
         (result, err) => {
           if (result) {
@@ -79,18 +81,15 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   }
 
   const stopScanning = () => {
-    setIsScanning(false)
-    if (scannerRef.current) {
-      scannerRef.current.reset()
-      scannerRef.current = null
+    if (cancelRef.current) {
+      cancelRef.current() // ✅ detiene la cámara y el decoder
+      cancelRef.current = null
     }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
-    }
+    scannerRef.current = null
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
+    setIsScanning(false)
   }
 
   const handleClose = () => {
@@ -137,7 +136,12 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
 
           {isScanning && (
             <div className="space-y-4">
-              <video ref={videoRef} className="w-full h-64 bg-black rounded-lg object-cover" playsInline muted />
+              <video
+                ref={videoRef}
+                className="w-full h-64 bg-black rounded-lg object-cover"
+                playsInline
+                muted
+              />
               <div className="text-center space-y-2">
                 <p className="text-sm text-muted-foreground">Apunta la cámara hacia el código</p>
                 <Button variant="outline" onClick={stopScanning} className="w-full bg-transparent">

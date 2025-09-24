@@ -10,7 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Icons } from "@/components/icons";
-import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import {
+  BrowserMultiFormatReader,
+  IScannerControls,
+} from "@zxing/browser";
+import {
+  BarcodeFormat,
+  DecodeHintType,
+} from "@zxing/library";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -27,7 +34,7 @@ export function BarcodeScanner({
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null);
   const cancelRef = useRef<IScannerControls | null>(null);
   const scannedRef = useRef<boolean>(false);
-  const scannedCodesRef = useRef<Set<string>>(new Set()); // Para controlar códigos ya escaneados
+  const scannedCodesRef = useRef<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -49,12 +56,21 @@ export function BarcodeScanner({
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current
-          .play()
-          .catch((e) => console.warn("video.play() fallo:", e));
+        await videoRef.current.play().catch((e) =>
+          console.warn("video.play() fallo:", e)
+        );
       }
 
-      const scanner = new BrowserMultiFormatReader();
+      // ---- Mejor detección ----
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+      ]);
+
+      const scanner = new BrowserMultiFormatReader(hints, 400);
       scannerRef.current = scanner;
 
       cancelRef.current = await scanner.decodeFromVideoDevice(
@@ -88,7 +104,7 @@ export function BarcodeScanner({
 
     try {
       if (cancelRef.current) {
-        cancelRef.current.stop(); // o .stop(), según tu versión de @zxing/browser
+        cancelRef.current.stop();
         cancelRef.current = null;
       }
 
@@ -147,16 +163,24 @@ export function BarcodeScanner({
 
           {isScanning ? (
             <div className="space-y-4">
-              <video
-                ref={videoRef}
-                className="w-full h-64 bg-black rounded-lg object-cover"
-                autoPlay
-                playsInline
-                muted
-              />
+              <div className="relative w-full h-64 bg-black rounded-lg overflow-hidden">
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                {/* Línea guía fija */}
+                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-70"></div>
+
+                {/* Línea láser animada */}
+                <div className="absolute left-0 w-full h-0.5 bg-green-500 animate-scanline"></div>
+              </div>
+
               <div className="text-center space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apunta la cámara hacia el código de barras
+                  Apunta el código dentro de la línea guía
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -210,3 +234,16 @@ export function BarcodeScanner({
     </Dialog>
   );
 }
+
+// Animación de la línea "láser"
+const style = document.createElement("style");
+style.innerHTML = `
+@keyframes scanline {
+  0% { top: 0%; }
+  100% { top: 100%; }
+}
+.animate-scanline {
+  animation: scanline 2s linear infinite alternate;
+}
+`;
+document.head.appendChild(style);

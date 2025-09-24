@@ -123,3 +123,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes scanline {
+  0%   { transform: translateY(0%); }
+  100% { transform: translateY(6000%); }
+}
+
+.scanline {
+  top: 0;
+  animation: scanline 3s linear infinite alternate;
+  box-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
+}

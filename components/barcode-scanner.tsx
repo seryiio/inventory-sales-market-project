@@ -10,14 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Icons } from "@/components/icons";
-import {
-  BrowserMultiFormatReader,
-  IScannerControls,
-} from "@zxing/browser";
-import {
-  BarcodeFormat,
-  DecodeHintType,
-} from "@zxing/library";
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -56,9 +50,9 @@ export function BarcodeScanner({
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch((e) =>
-          console.warn("video.play() fallo:", e)
-        );
+        await videoRef.current
+          .play()
+          .catch((e) => console.warn("video.play() fallo:", e));
       }
 
       // ---- Mejor detección ----
@@ -82,6 +76,12 @@ export function BarcodeScanner({
             if (!scannedCodesRef.current.has(code)) {
               scannedCodesRef.current.add(code);
               scannedRef.current = true;
+
+              // ✅ Vibración en móviles
+              if (navigator.vibrate) {
+                navigator.vibrate(200); // vibra 200ms
+              }
+
               stopScanner();
               onScan(code);
               onClose();
@@ -129,6 +129,12 @@ export function BarcodeScanner({
       const code = barcode.trim();
       if (!scannedCodesRef.current.has(code)) {
         scannedCodesRef.current.add(code);
+
+        // ✅ Vibración también en ingreso manual
+        if (navigator.vibrate) {
+          navigator.vibrate(200);
+        }
+
         onScan(code);
         stopScanner();
         onClose();
@@ -171,16 +177,35 @@ export function BarcodeScanner({
                   playsInline
                   muted
                 />
-                {/* Línea guía fija */}
-                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500 opacity-70"></div>
+                {/* Franja láser animada */}
+                <div className="scanline absolute left-0 right-0 h-10"></div>
 
-                {/* Línea láser animada */}
-                <div className="absolute left-0 w-full h-0.5 bg-green-500 animate-scanline"></div>
+                <style jsx>{`
+                  @keyframes scanline {
+                    0% {
+                      transform: translateY(0);
+                    }
+                    100% {
+                      transform: translateY(256px); /* h-64 = 256px */
+                    }
+                  }
+                  .scanline {
+                    top: 0;
+                    animation: scanline 3s linear infinite alternate;
+                    background: linear-gradient(
+                      to bottom,
+                      rgba(255, 0, 0, 0) 0%,
+                      rgba(255, 0, 0, 0.5) 50%,
+                      rgba(255, 0, 0, 0) 100%
+                    );
+                    box-shadow: 0 0 16px rgba(255, 0, 0, 0.8);
+                  }
+                `}</style>
               </div>
 
               <div className="text-center space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apunta el código dentro de la línea guía
+                  Apunta el código dentro de la línea láser
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -234,16 +259,3 @@ export function BarcodeScanner({
     </Dialog>
   );
 }
-
-// Animación de la línea "láser"
-const style = document.createElement("style");
-style.innerHTML = `
-@keyframes scanline {
-  0% { top: 0%; }
-  100% { top: 100%; }
-}
-.animate-scanline {
-  animation: scanline 2s linear infinite alternate;
-}
-`;
-document.head.appendChild(style);

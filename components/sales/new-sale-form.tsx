@@ -79,49 +79,20 @@ export function NewSaleForm() {
         .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
         .single()
         .then(({ data: product, error }) => {
-          if (error || !product) {
-            toast({
-              title: "Producto no encontrado",
-              description:
-                "No se encontró un producto con ese código en la tienda seleccionada",
-              variant: "destructive",
-            });
-            return;
-          }
-
-          if (product.stock_quantity <= 0) {
-            toast({
-              title: "Sin stock",
-              description: "Este producto no tiene stock disponible",
-              variant: "destructive",
-            });
-            return;
-          }
+          if (!product) return;
 
           setSaleItems((prevItems) => {
-            const existingIndex = prevItems.findIndex(
-              (item) => item.product.id === product.id
-            );
-
-            if (existingIndex >= 0) {
-              const updatedItems = [...prevItems];
-              const currentQuantity = updatedItems[existingIndex].quantity;
-
-              if (currentQuantity >= product.stock_quantity) {
-                toast({
-                  title: "Stock insuficiente",
-                  description: `Solo hay ${product.stock_quantity} unidades disponibles`,
-                  variant: "destructive",
-                });
-                return prevItems;
-              }
-
-              updatedItems[existingIndex] = {
-                ...updatedItems[existingIndex],
+            const idx = prevItems.findIndex((i) => i.product.id === product.id);
+            if (idx >= 0) {
+              const currentQuantity = prevItems[idx].quantity;
+              if (currentQuantity >= product.stock_quantity) return prevItems;
+              const updated = [...prevItems];
+              updated[idx] = {
+                ...updated[idx],
                 quantity: currentQuantity + 1,
                 total_price: (currentQuantity + 1) * product.unit_price,
               };
-              return updatedItems;
+              return updated;
             } else {
               return [
                 ...prevItems,
@@ -135,7 +106,7 @@ export function NewSaleForm() {
             }
           });
 
-          setBarcodeInput("");
+          setBarcodeInput(""); // limpiar input
         });
     } else {
       const product = barcodeOrProduct;
@@ -182,14 +153,11 @@ export function NewSaleForm() {
 
   // 🔹 Control de escaneo rápido para cámara y manual
   const handleBarcodeScanned = (barcode: string) => {
+    // ✅ Ignorar si ya fue escaneado en esta sesión del modal
     if (scannedCodesRef.current.has(barcode)) return;
 
     scannedCodesRef.current.add(barcode);
     addProductToSale(barcode);
-
-    setTimeout(() => {
-      scannedCodesRef.current.delete(barcode);
-    }, 1000); // desbloquea después de 1 segundo
   };
 
   const handleManualInput = () => {

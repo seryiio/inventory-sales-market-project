@@ -13,7 +13,7 @@ import { Icons } from "@/components/icons";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 
 interface BarcodeScannerProps {
-  onScan: (barcode: string) => Promise<void> | void;
+  onScan: (barcode: string) => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -29,16 +29,17 @@ export function BarcodeScanner({
   const scannedRef = useRef<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const scannedCodesRef = useRef<Set<string>>(new Set())
+
 
   useEffect(() => {
     if (!isOpen) stopScanner();
+    else scannedRef.current = false; // resetear al abrir
   }, [isOpen]);
 
   const startScanner = async () => {
-    if (!isOpen) return;
     setError(null);
     scannedRef.current = false;
-
     try {
       setIsScanning(true);
 
@@ -47,37 +48,37 @@ export function BarcodeScanner({
         audio: false,
       });
 
-      // 🔹 Pequeño delay para asegurar que el <video> esté en el DOM
-      setTimeout(async () => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current
-            .play()
-            .catch((e) => console.warn("video.play() fallo:", e));
-        }
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current
+          .play()
+          .catch((e) => console.warn("video.play() fallo:", e));
+      }
 
-        const scanner = new BrowserMultiFormatReader();
-        scannerRef.current = scanner;
+      const scanner = new BrowserMultiFormatReader();
+      scannerRef.current = scanner;
 
-        cancelRef.current = scanner.decodeFromVideoDevice(
-          undefined,
-          videoRef.current!,
-          (result, err) => {
-            if (!isOpen) return;
+      cancelRef.current = await scanner.decodeFromVideoDevice(
+        undefined,
+        videoRef.current!,
+        (result, err) => {
+          if (result) {
+            const code = result.getText();
+            if (!scannedCodesRef.current.has(code)) {
+              scannedCodesRef.current.add(code);
+              console.log("[scanner] resultado:", code);
 
-            if (result && !scannedRef.current) {
-              scannedRef.current = true;
-              onScan(result.getText());
               stopScanner();
+              onScan(code);
               onClose();
             }
-
-            if (err && !(err.name === "NotFoundException")) {
-              console.error("[scanner] decode error:", err);
-            }
           }
-        );
-      }, 100);
+
+          if (err && !(err.name === "NotFoundException")) {
+            console.error("[scanner] decode error:", err);
+          }
+        }
+      );
     } catch (err) {
       console.error("start error:", err);
       setError("No se pudo iniciar la cámara. Verifica permisos/HTTPS.");
@@ -87,30 +88,32 @@ export function BarcodeScanner({
 
   const stopScanner = () => {
     setIsScanning(false);
+
     try {
       if (cancelRef.current) {
         cancelRef.current();
         cancelRef.current = null;
       }
-      if (scannerRef.current) {
-        scannerRef.current.reset(); // 🔹 Resetea ZXing
-        scannerRef.current = null;
-      }
+
+      scannerRef.current = null;
+
       if (videoRef.current && videoRef.current.srcObject) {
         const s = videoRef.current.srcObject as MediaStream;
         s.getTracks().forEach((t) => t.stop());
         videoRef.current.srcObject = null;
       }
     } catch (e) {
-      console.warn("[scanner] stopScanner error:", e);
+      console.warn("[scanner] stopScanner unexpected error:", e);
     } finally {
       scannedRef.current = false;
+      scannedCodesRef.current.clear();
     }
   };
 
   const handleManualInput = () => {
     const barcode = prompt("Ingresa el código de barras manualmente:");
     if (barcode && barcode.trim()) {
+      console.log("[scanner] manual barcode:", barcode.trim());
       onScan(barcode.trim());
       stopScanner();
       onClose();

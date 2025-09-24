@@ -17,61 +17,88 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const scannerRef = useRef<BrowserMultiFormatReader | null>(null)
   const cancelRef = useRef<(() => void) | null>(null)
+  const scannedRef = useRef<boolean>(false) // <- evita lecturas múltiples
   const [error, setError] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
 
   useEffect(() => {
-    // No arrancamos automáticamente la cámara al abrir el modal por seguridad;
-    // el usuario presiona "Activar Cámara". Si prefieres auto-start, llama startScanner() aquí.
-    if (!isOpen) {
-      // cuando se cierra el modal por cualquier vía, aseguramos detener todo
-      stopScanner()
-    }
+    // Si modal se cierra desde padre, asegurar limpieza
+    if (!isOpen) stopScanner()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const startScanner = async () => {
     setError(null)
+    scannedRef.current = false // reset al iniciar
     try {
       setIsScanning(true)
 
-      // debug: enumerar dispositivos para ver si el navegador reporta la cámara
       const devices = await navigator.mediaDevices.enumerateDevices()
       console.log("[scanner] devices:", devices)
 
-      // pedimos el stream (trasera preferida)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       })
 
-      // forzamos el stream al <video>
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        // atributos HTML (autoplay/playsinline/muted) ya en JSX; forzamos play por si acaso
         await videoRef.current.play().catch((e) => console.warn("[scanner] video.play() fallo:", e))
       }
 
-      // inicializamos el lector
       const scanner = new BrowserMultiFormatReader()
       scannerRef.current = scanner
 
-      // decodeFromVideoDevice devuelve una función de cancelación (que guardamos)
+      // decodeFromVideoDevice devuelve una función canceladora (guardamos)
       cancelRef.current = await scanner.decodeFromVideoDevice(
         undefined,
         videoRef.current!,
-        (result, err) => {
+        async (result, err) => {
           if (result) {
-            console.log("[scanner] result:", result.getText())
-            onScan(result.getText())
-            // cerramos modal y detenemos scanner después de reportar el resultado
-            handleClose()
+            // si ya se leyó algo, ignorar lecturas posteriores
+            if (scannedRef.current) return
+            scannedRef.current = true
+
+            // detener inmediatamente el decoder/stream para evitar más callbacks
+            try {
+              if (cancelRef.current) {
+                cancelRef.current()
+                cancelRef.current = null
+              }
+            } catch (e) {
+              console.warn("[scanner] error cancelando decoder:", e)
+            }
+
+            // opcional: detener tracks del video también
+            if (videoRef.current && videoRef.current.srcObject) {
+              const s = videoRef.current.srcObject as MediaStream
+              s.getTracks().forEach((t) => {
+                try {
+                  t.stop()
+                } catch (e) {}
+              })
+              videoRef.current.srcObject = null
+            }
+
+            console.log("[scanner] resultado único:", result.getText())
+
+            // Llamar onScan AFTER de haber detenido el scanner para evitar races
+            try {
+              onScan(result.getText())
+            } catch (e) {
+              console.error("[scanner] onScan error:", e)
+            }
+
+            // cerrar modal (limpieza)
+            stopScanner()
+            onClose()
           }
           if (err && !(err.name === "NotFoundException")) {
             console.error("[scanner] decode error:", err)
           }
         }
       )
+
       console.log("[scanner] started")
     } catch (err: any) {
       console.error("[scanner] start error:", err)
@@ -85,7 +112,6 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
     setIsScanning(false)
 
     try {
-      // si existe la función cancel, la ejecutamos
       if (cancelRef.current) {
         try {
           cancelRef.current()
@@ -95,31 +121,23 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
         cancelRef.current = null
       }
 
-      // cleanup del scanner instance
       scannerRef.current = null
 
-      // detener cualquier track del video
       if (videoRef.current && videoRef.current.srcObject) {
         const s = videoRef.current.srcObject as MediaStream
         s.getTracks().forEach((t) => {
           try {
             t.stop()
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
         })
         videoRef.current.srcObject = null
       }
     } catch (e) {
       console.warn("[scanner] stopScanner unexpected error:", e)
+    } finally {
+      // reset flag para futuras aperturas
+      scannedRef.current = false
     }
-  }
-
-  // handleClose que usa el resto del código (sin parámetros)
-  const handleClose = () => {
-    console.log("[scanner] handleClose called")
-    stopScanner()
-    onClose()
   }
 
   const handleManualInput = () => {
@@ -127,17 +145,16 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
     if (barcode && barcode.trim()) {
       console.log("[scanner] manual barcode:", barcode.trim())
       onScan(barcode.trim())
-      handleClose()
+      stopScanner()
+      onClose()
     }
   }
 
   return (
     <Dialog
       open={isOpen}
-      // IMPORTANT: aquí capturamos el booleano que pasa Dialog
       onOpenChange={(open) => {
         console.log("[Dialog] onOpenChange:", open)
-        // si el usuario cierra (open === false) hacemos la misma lógica que handleClose
         if (!open) {
           stopScanner()
           onClose()
@@ -171,7 +188,7 @@ export function BarcodeScanner({ onScan, isOpen, onClose }: BarcodeScannerProps)
               <div className="text-center space-y-2">
                 <p className="text-sm text-muted-foreground">Apunta la cámara hacia el código de barras</p>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={stopScanner} className="flex-1 bg-transparent">
+                  <Button variant="outline" onClick={() => { stopScanner(); onClose(); }} className="flex-1 bg-transparent">
                     <Icons.X />
                     <span className="ml-2">Cancelar</span>
                   </Button>

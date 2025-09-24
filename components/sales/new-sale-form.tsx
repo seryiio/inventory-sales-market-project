@@ -1,69 +1,86 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
-import type { Store, Product } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/hooks/use-toast"
-import { formatCurrency } from "@/lib/utils"
-import { Scan, Plus, Minus, Trash2, ShoppingCart, Camera } from "lucide-react"
-import { BarcodeScanner } from "@/components/barcode-scanner"
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Store, Product } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
+import { Scan, Plus, Minus, Trash2, ShoppingCart, Camera } from "lucide-react";
+import { BarcodeScanner } from "@/components/barcode-scanner";
 
 interface SaleItem {
-  product: Product
-  quantity: number
-  unit_price: number
-  total_price: number
+  product: Product;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
 }
 
 export function NewSaleForm() {
-  const [stores, setStores] = useState<Store[]>([])
-  const [selectedStore, setSelectedStore] = useState<string>("")
-  const [barcodeInput, setBarcodeInput] = useState("")
-  const [customerName, setCustomerName] = useState("")
-  const [customerPhone, setCustomerPhone] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState("efectivo")
-  const [discountAmount, setDiscountAmount] = useState(0)
-  const [saleItems, setSaleItems] = useState<SaleItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const [showScanner, setShowScanner] = useState(false)
-  const { toast } = useToast()
+  const [stores, setStores] = useState<Store[]>([]);
+  const [selectedStore, setSelectedStore] = useState<string>("");
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("efectivo");
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadStores()
-  }, [])
+    loadStores();
+  }, []);
 
   const loadStores = async () => {
-    const supabase = createClient()
-    const { data: storesData } = await supabase.from("stores").select("*").order("name")
-    if (storesData) setStores(storesData)
-  }
+    const supabase = createClient();
+    const { data: storesData } = await supabase
+      .from("stores")
+      .select("*")
+      .order("name");
+    if (storesData) setStores(storesData);
+  };
 
   const searchProduct = async (barcode: string) => {
-    if (!barcode.trim() || !selectedStore) return
+    if (!barcode.trim() || !selectedStore) return;
 
-    const supabase = createClient()
+    const supabase = createClient();
     const { data: product, error } = await supabase
       .from("products")
       .select("*")
       .eq("store_id", selectedStore)
       .eq("is_active", true)
       .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
-      .single()
+      .single();
 
     if (error || !product) {
       toast({
         title: "Producto no encontrado",
-        description: "No se encontró un producto con ese código en la tienda seleccionada",
+        description:
+          "No se encontró un producto con ese código en la tienda seleccionada",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     if (product.stock_quantity <= 0) {
@@ -71,55 +88,57 @@ export function NewSaleForm() {
         title: "Sin stock",
         description: "Este producto no tiene stock disponible",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    addProductToSale(product)
-    setBarcodeInput("")
-  }
+    addProductToSale(product);
+    setBarcodeInput("");
+  };
 
   const handleBarcodeScanned = (barcode: string) => {
-    console.log("[v0] Barcode recibido del escáner:", barcode)
-    setBarcodeInput(barcode)
-    searchProduct(barcode)
-    setShowScanner(false) // 🔽 cerrar cámara después de escanear
-  }
+    console.log("[v0] Barcode recibido del escáner:", barcode);
+    setBarcodeInput(barcode);
+    searchProduct(barcode);
+  };
 
   const addProductToSale = (product: Product) => {
-    const existingItemIndex = saleItems.findIndex((item) => item.product.id === product.id)
+    const existingItemIndex = saleItems.findIndex(
+      (item) => item.product.id === product.id
+    );
 
     if (existingItemIndex >= 0) {
-      const updatedItems = [...saleItems]
-      const currentQuantity = updatedItems[existingItemIndex].quantity
+      const updatedItems = [...saleItems];
+      const currentQuantity = updatedItems[existingItemIndex].quantity;
 
       if (currentQuantity >= product.stock_quantity) {
         toast({
           title: "Stock insuficiente",
           description: `Solo hay ${product.stock_quantity} unidades disponibles`,
           variant: "destructive",
-        })
-        return
+        });
+        return;
       }
 
-      updatedItems[existingItemIndex].quantity += 1
-      updatedItems[existingItemIndex].total_price = updatedItems[existingItemIndex].quantity * product.unit_price
-      setSaleItems(updatedItems)
+      updatedItems[existingItemIndex].quantity += 1;
+      updatedItems[existingItemIndex].total_price =
+        updatedItems[existingItemIndex].quantity * product.unit_price;
+      setSaleItems(updatedItems);
     } else {
       const newItem: SaleItem = {
         product,
         quantity: 1,
         unit_price: product.unit_price,
         total_price: product.unit_price,
-      }
-      setSaleItems([...saleItems, newItem])
+      };
+      setSaleItems([...saleItems, newItem]);
     }
-  }
+  };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeItem(productId)
-      return
+      removeItem(productId);
+      return;
     }
 
     const updatedItems = saleItems.map((item) => {
@@ -129,29 +148,29 @@ export function NewSaleForm() {
             title: "Stock insuficiente",
             description: `Solo hay ${item.product.stock_quantity} unidades disponibles`,
             variant: "destructive",
-          })
-          return item
+          });
+          return item;
         }
         return {
           ...item,
           quantity: newQuantity,
           total_price: newQuantity * item.unit_price,
-        }
+        };
       }
-      return item
-    })
-    setSaleItems(updatedItems)
-  }
+      return item;
+    });
+    setSaleItems(updatedItems);
+  };
 
   const removeItem = (productId: string) => {
-    setSaleItems(saleItems.filter((item) => item.product.id !== productId))
-  }
+    setSaleItems(saleItems.filter((item) => item.product.id !== productId));
+  };
 
   const calculateTotals = () => {
-    const subtotal = saleItems.reduce((sum, item) => sum + item.total_price, 0)
-    const total = subtotal - discountAmount
-    return { subtotal, total }
-  }
+    const subtotal = saleItems.reduce((sum, item) => sum + item.total_price, 0);
+    const total = subtotal - discountAmount;
+    return { subtotal, total };
+  };
 
   const completeSale = async () => {
     if (!selectedStore || saleItems.length === 0) {
@@ -159,16 +178,16 @@ export function NewSaleForm() {
         title: "Error",
         description: "Selecciona una tienda y agrega productos",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setLoading(true)
-    const supabase = createClient()
+    setLoading(true);
+    const supabase = createClient();
 
     try {
-      const { subtotal, total } = calculateTotals()
-      const saleNumber = `V-${Date.now()}`
+      const { subtotal, total } = calculateTotals();
+      const saleNumber = `V-${Date.now()}`;
 
       const { data: sale, error: saleError } = await supabase
         .from("sales")
@@ -185,9 +204,9 @@ export function NewSaleForm() {
           },
         ])
         .select()
-        .single()
+        .single();
 
-      if (saleError) throw saleError
+      if (saleError) throw saleError;
 
       const saleItemsData = saleItems.map((item) => ({
         sale_id: sale.id,
@@ -195,60 +214,67 @@ export function NewSaleForm() {
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_price: item.total_price,
-      }))
+      }));
 
-      const { error: itemsError } = await supabase.from("sale_items").insert(saleItemsData)
-      if (itemsError) throw itemsError
+      const { error: itemsError } = await supabase
+        .from("sale_items")
+        .insert(saleItemsData);
+      if (itemsError) throw itemsError;
 
       for (const item of saleItems) {
-        const newStock = item.product.stock_quantity - item.quantity
+        const newStock = item.product.stock_quantity - item.quantity;
 
         const { error: stockError } = await supabase
           .from("products")
-          .update({ stock_quantity: newStock, updated_at: new Date().toISOString() })
-          .eq("id", item.product.id)
+          .update({
+            stock_quantity: newStock,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.product.id);
 
-        if (stockError) throw stockError
+        if (stockError) throw stockError;
 
-        const { error: movementError } = await supabase.from("stock_movements").insert([
-          {
-            product_id: item.product.id,
-            movement_type: "salida",
-            quantity: -item.quantity,
-            previous_stock: item.product.stock_quantity,
-            new_stock: newStock,
-            reference_id: sale.id,
-            reference_type: "sale",
-            notes: `Venta ${saleNumber}`,
-          },
-        ])
+        const { error: movementError } = await supabase
+          .from("stock_movements")
+          .insert([
+            {
+              product_id: item.product.id,
+              movement_type: "salida",
+              quantity: -item.quantity,
+              previous_stock: item.product.stock_quantity,
+              new_stock: newStock,
+              reference_id: sale.id,
+              reference_type: "sale",
+              notes: `Venta ${saleNumber}`,
+            },
+          ]);
 
-        if (movementError) throw movementError
+        if (movementError) throw movementError;
       }
 
       toast({
         title: "Venta completada",
         description: `Venta ${saleNumber} registrada exitosamente`,
-      })
+      });
 
-      setSaleItems([])
-      setCustomerName("")
-      setCustomerPhone("")
-      setDiscountAmount(0)
-      setBarcodeInput("")
+      setSaleItems([]);
+      setCustomerName("");
+      setCustomerPhone("");
+      setDiscountAmount(0);
+      setBarcodeInput("");
     } catch (error) {
-      console.error("Error completing sale:", error)
+      console.error("Error completing sale:", error);
       toast({
         title: "Error",
         description: "No se pudo completar la venta",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const { subtotal, total } = calculateTotals()
+  const { subtotal, total } = calculateTotals();
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -263,7 +289,11 @@ export function NewSaleForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="store">Tienda *</Label>
-              <Select value={selectedStore} onValueChange={setSelectedStore} required>
+              <Select
+                value={selectedStore}
+                onValueChange={setSelectedStore}
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar tienda" />
                 </SelectTrigger>
@@ -334,7 +364,7 @@ export function NewSaleForm() {
                   placeholder="Escanea o escribe el código de barras, SKU o nombre del producto..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      searchProduct(barcodeInput)
+                      searchProduct(barcodeInput);
                     }
                   }}
                   disabled={!selectedStore}
@@ -362,7 +392,9 @@ export function NewSaleForm() {
               </div>
             </div>
             {!selectedStore && (
-              <p className="text-sm text-muted-foreground">Selecciona una tienda para comenzar a escanear productos</p>
+              <p className="text-sm text-muted-foreground">
+                Selecciona una tienda para comenzar a escanear productos
+              </p>
             )}
           </div>
         </CardContent>
@@ -371,7 +403,9 @@ export function NewSaleForm() {
       {saleItems.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Productos en la Venta</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">
+              Productos en la Venta
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border overflow-x-auto">
@@ -402,23 +436,31 @@ export function NewSaleForm() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(item.product.id, item.quantity - 1)
+                            }
                             className="h-8 w-8 p-0"
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-8 text-center text-sm">{item.quantity}</span>
+                          <span className="w-8 text-center text-sm">
+                            {item.quantity}
+                          </span>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                            onClick={() =>
+                              updateQuantity(item.product.id, item.quantity + 1)
+                            }
                             className="h-8 w-8 p-0"
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{formatCurrency(item.total_price)}</TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(item.total_price)}
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant="ghost"
@@ -449,7 +491,9 @@ export function NewSaleForm() {
                   min="0"
                   max={subtotal}
                   value={discountAmount}
-                  onChange={(e) => setDiscountAmount(Number.parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setDiscountAmount(Number.parseFloat(e.target.value) || 0)
+                  }
                   className="w-full sm:w-32"
                 />
               </div>
@@ -473,7 +517,12 @@ export function NewSaleForm() {
                 </div>
               </div>
 
-              <Button onClick={completeSale} disabled={loading || saleItems.length === 0} className="w-full" size="lg">
+              <Button
+                onClick={completeSale}
+                disabled={loading || saleItems.length === 0}
+                className="w-full"
+                size="lg"
+              >
                 {loading ? "Procesando..." : "Completar Venta"}
               </Button>
             </div>
@@ -481,7 +530,11 @@ export function NewSaleForm() {
         </Card>
       )}
 
-      <BarcodeScanner isOpen={showScanner} onClose={() => setShowScanner(false)} onScan={handleBarcodeScanned} />
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleBarcodeScanned}
+      />
     </div>
-  )
+  );
 }

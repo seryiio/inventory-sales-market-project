@@ -98,7 +98,6 @@ export function NewSaleForm() {
   const handleBarcodeScanned = (barcode: string) => {
     console.log("[v0] Barcode recibido del escáner:", barcode);
     searchProduct(barcode);
-    setShowScanner(false);
   };
 
   const addProductToSale = (product: Product) => {

@@ -48,7 +48,6 @@ export function NewSaleForm() {
   const [showScanner, setShowScanner] = useState(false);
   const { toast } = useToast();
 
-  // Ref para evitar incrementos automáticos al escanear rápido
   const scannedCodesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -78,7 +77,7 @@ export function NewSaleForm() {
         .eq("is_active", true)
         .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
         .single()
-        .then(({ data: product, error }) => {
+        .then(({ data: product }) => {
           if (!product) return;
 
           setSaleItems((prevItems) => {
@@ -106,7 +105,7 @@ export function NewSaleForm() {
             }
           });
 
-          setBarcodeInput(""); // limpiar input
+          setBarcodeInput("");
         });
     } else {
       const product = barcodeOrProduct;
@@ -151,10 +150,7 @@ export function NewSaleForm() {
     }
   };
 
-  // 🔹 Control de escaneo rápido para cámara y manual
   const handleBarcodeScanned = (barcode: string) => {
-    console.log("[v0] Barcode recibido del escáner:", barcode);
-
     setSaleItems((prevItems) => {
       const existingIndex = prevItems.findIndex(
         (item) =>
@@ -162,20 +158,15 @@ export function NewSaleForm() {
       );
 
       if (existingIndex >= 0) {
-        // Incrementar cantidad si ya existe
         const updatedItems = [...prevItems];
         const item = updatedItems[existingIndex];
-
         if (item.quantity < item.product.stock_quantity) {
           item.quantity += 1;
           item.total_price = item.quantity * item.unit_price;
         }
-
         return updatedItems;
       }
 
-      // Si no existe, agregar normalmente
-      // Aquí tendrías que buscar el producto en tu base de datos
       const supabase = createClient();
       supabase
         .from("products")
@@ -184,7 +175,7 @@ export function NewSaleForm() {
         .eq("is_active", true)
         .or(`barcode.eq.${barcode},sku.eq.${barcode},name.ilike.%${barcode}%`)
         .single()
-        .then(({ data: product, error }) => {
+        .then(({ data: product }) => {
           if (product) {
             setSaleItems((prev) => [
               ...prev,
@@ -478,107 +469,137 @@ export function NewSaleForm() {
         </CardContent>
       </Card>
 
-      {/* Tabla de productos */}
+      {/* Productos en venta */}
       {saleItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">
-              Productos en la Venta
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[200px]">Producto</TableHead>
-                    <TableHead className="min-w-[100px]">Precio</TableHead>
-                    <TableHead className="min-w-[120px]">Cantidad</TableHead>
-                    <TableHead className="min-w-[100px]">Total</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {saleItems.map((item) => (
-                    <TableRow key={item.product.id}>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{item.product.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Stock: {item.product.stock_quantity} unidades
-                          </div>
+        <>
+          {/* Desktop Table */}
+          <div className="hidden lg:block rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Precio</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {saleItems.map((item) => (
+                  <TableRow key={item.product.id}>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="font-medium">{item.product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Stock: {item.product.stock_quantity} unidades
                         </div>
-                      </TableCell>
-                      <TableCell>{formatCurrency(item.unit_price)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 sm:gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateQuantity(item.product.id, item.quantity - 1)
-                            }
-                            className="h-8 w-8 p-0"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center text-sm">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              updateQuantity(item.product.id, item.quantity + 1)
-                            }
-                            className="h-8 w-8 p-0"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(item.total_price)}
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatCurrency(item.unit_price)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => removeItem(item.product.id)}
+                          onClick={() =>
+                            updateQuantity(item.product.id, item.quantity - 1)
+                          }
                           className="h-8 w-8 p-0"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Minus className="h-3 w-3" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        <span className="w-8 text-center text-sm">{item.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            updateQuantity(item.product.id, item.quantity + 1)
+                          }
+                          className="h-8 w-8 p-0"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{formatCurrency(item.total_price)}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(item.product.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-            <Separator className="my-4" />
+          {/* Mobile Cards */}
+          <div className="lg:hidden space-y-4">
+            {saleItems.map((item) => (
+              <Card key={item.product.id}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="space-y-1">
+                      <div className="font-medium">{item.product.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Stock: {item.product.stock_quantity} unidades
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItem(item.product.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <Label htmlFor="discount" className="text-sm">
-                  Descuento
-                </Label>
-                <Input
-                  id="discount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={subtotal}
-                  value={discountAmount}
-                  onChange={(e) =>
-                    setDiscountAmount(Number.parseFloat(e.target.value) || 0)
-                  }
-                  className="w-full sm:w-32"
-                />
-              </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Precio:</span>
+                    <span className="font-medium">{formatCurrency(item.unit_price)}</span>
+                  </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-base sm:text-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Cantidad:</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                        className="h-7 w-7 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                        className="h-7 w-7 p-0"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Total:</span>
+                    <span className="font-medium">{formatCurrency(item.total_price)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Totales y completar venta para móviles */}
+            <Card>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center text-base">
                   <span>Subtotal:</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
@@ -590,23 +611,23 @@ export function NewSaleForm() {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center text-lg sm:text-xl font-bold">
+                <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total:</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
-              </div>
 
-              <Button
-                onClick={completeSale}
-                disabled={loading || saleItems.length === 0}
-                className="w-full"
-                size="lg"
-              >
-                {loading ? "Procesando..." : "Completar Venta"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <Button
+                  onClick={completeSale}
+                  disabled={loading || saleItems.length === 0}
+                  className="w-full"
+                  size="lg"
+                >
+                  {loading ? "Procesando..." : "Completar Venta"}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Escáner de códigos */}

@@ -49,13 +49,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-CO", {
+  return new Intl.NumberFormat("es-PE", {
     style: "currency",
-    currency: "COP",
+    currency: "PEN",
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount)
+  }).format(amount);
 }
+
 
 export function formatDate(date: string): string {
   return new Intl.DateTimeFormat("es-CO", {

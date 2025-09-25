@@ -294,8 +294,13 @@ export function InventoryTable({ filters }: Props) {
       (filters.stockFilter === "low" && p.stock_quantity <= p.min_stock) ||
       (filters.stockFilter === "out" && p.stock_quantity === 0) ||
       (filters.stockFilter === "normal" && p.stock_quantity > p.min_stock);
+    const matchSupplier =
+      filters.selectedSupplier === "all" ||
+      p.supplier === filters.selectedSupplier;
 
-    return matchSearch && matchStore && matchCategory && matchStock;
+    return (
+      matchSearch && matchStore && matchCategory && matchStock && matchSupplier
+    );
   });
 
   return (

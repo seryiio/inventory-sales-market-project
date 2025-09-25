@@ -29,8 +29,11 @@ export function BarcodeScanner({
   const cancelRef = useRef<IScannerControls | null>(null);
   const scannedRef = useRef<boolean>(false);
   const scannedCodesRef = useRef<Set<string>>(new Set());
+
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
 
   useEffect(() => {
     if (!isOpen) stopScanner();
@@ -55,7 +58,23 @@ export function BarcodeScanner({
           .catch((e) => console.warn("video.play() fallo:", e));
       }
 
-      // ---- Mejor detección ----
+      // Detectar soporte de linterna
+      const track = stream.getVideoTracks()[0];
+      if ("ImageCapture" in window) {
+        try {
+          const imageCapture = new ImageCapture(track);
+          const photoCapabilities = await imageCapture.getPhotoCapabilities();
+          if (
+            photoCapabilities.torch ||
+            photoCapabilities.fillLightMode?.includes("torch")
+          ) {
+            setTorchSupported(true);
+          }
+        } catch (err) {
+          console.warn("Torch no soportado:", err);
+        }
+      }
+
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
         BarcodeFormat.CODE_128,
@@ -77,10 +96,7 @@ export function BarcodeScanner({
               scannedCodesRef.current.add(code);
               scannedRef.current = true;
 
-              // ✅ Vibración en móviles
-              if (navigator.vibrate) {
-                navigator.vibrate(200); // vibra 200ms
-              }
+              if (navigator.vibrate) navigator.vibrate(200);
 
               stopScanner();
               onScan(code);
@@ -101,6 +117,8 @@ export function BarcodeScanner({
 
   const stopScanner = () => {
     setIsScanning(false);
+    setTorchOn(false);
+    setTorchSupported(false);
 
     try {
       if (cancelRef.current) {
@@ -123,6 +141,23 @@ export function BarcodeScanner({
     }
   };
 
+  const toggleTorch = async () => {
+    const stream = videoRef.current?.srcObject as MediaStream;
+    if (!stream) return;
+
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+
+    try {
+      await track.applyConstraints({
+        advanced: [{ torch: !torchOn }],
+      });
+      setTorchOn(!torchOn);
+    } catch (err) {
+      console.warn("No se pudo cambiar el estado de la linterna:", err);
+    }
+  };
+
   const handleManualInput = () => {
     const barcode = prompt("Ingresa el código de barras manualmente:");
     if (barcode && barcode.trim()) {
@@ -130,10 +165,7 @@ export function BarcodeScanner({
       if (!scannedCodesRef.current.has(code)) {
         scannedCodesRef.current.add(code);
 
-        // ✅ Vibración también en ingreso manual
-        if (navigator.vibrate) {
-          navigator.vibrate(200);
-        }
+        if (navigator.vibrate) navigator.vibrate(200);
 
         onScan(code);
         stopScanner();
@@ -186,7 +218,7 @@ export function BarcodeScanner({
                       transform: translateY(0);
                     }
                     100% {
-                      transform: translateY(256px); /* h-64 = 256px */
+                      transform: translateY(256px);
                     }
                   }
                   .scanline {
@@ -207,25 +239,32 @@ export function BarcodeScanner({
                 <p className="text-sm text-muted-foreground">
                   Apunta el código dentro de la línea láser
                 </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      stopScanner();
-                      onClose();
-                    }}
-                    className="flex-1 bg-transparent"
-                  >
-                    <Icons.X />
-                    <span className="ml-2">Cancelar</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleManualInput}
-                    className="flex-1 bg-transparent"
-                  >
-                    Ingresar Manual
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  {torchSupported && (
+                    <Button variant="secondary" onClick={toggleTorch} className="w-full">
+                      {torchOn ? "Apagar Linterna" : "Encender Linterna"}
+                    </Button>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        stopScanner();
+                        onClose();
+                      }}
+                      className="flex-1 bg-transparent"
+                    >
+                      <Icons.X />
+                      <span className="ml-2">Cancelar</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleManualInput}
+                      className="flex-1 bg-transparent"
+                    >
+                      Ingresar Manual
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -68,7 +68,8 @@ export function SalesTable({ filters }: Props) {
     setLoading(false);
   };
 
-  if (loading) return <div className="text-center py-8">Cargando ventas...</div>;
+  if (loading)
+    return <div className="text-center py-8">Cargando ventas...</div>;
 
   // FILTRO DINÁMICO
   const filteredSales = sales.filter((sale) => {
@@ -78,7 +79,8 @@ export function SalesTable({ filters }: Props) {
       (sale.customer_name?.toLowerCase().includes(term) ?? false);
 
     const matchStore =
-      filters.selectedStore === "all" || sale.store?.id === filters.selectedStore;
+      filters.selectedStore === "all" ||
+      sale.store?.id === filters.selectedStore;
 
     const matchStatus =
       filters.statusFilter === "all" || sale.status === filters.statusFilter;
@@ -104,7 +106,8 @@ export function SalesTable({ filters }: Props) {
           const currentQuarter = Math.floor(today.getMonth() / 3);
           const saleQuarter = Math.floor(saleDate.getMonth() / 3);
           matchDate =
-            saleQuarter === currentQuarter && saleDate.getFullYear() === today.getFullYear();
+            saleQuarter === currentQuarter &&
+            saleDate.getFullYear() === today.getFullYear();
           break;
         case "year":
           matchDate = saleDate.getFullYear() === today.getFullYear();
@@ -146,17 +149,71 @@ export function SalesTable({ filters }: Props) {
     return methods[method] || method;
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Seguro que quieres eliminar este producto?")) return;
+  const handleDelete = async (saleId: string) => {
+    if (!confirm("¿Seguro que quieres eliminar esta venta?")) return;
+
     const supabase = createClient();
-    const { error } = await supabase.from("sales").delete().eq("id", id);
-    if (error)
+
+    try {
+      // 1️⃣ Obtener los items de la venta
+      const { data: items, error: itemsError } = await supabase
+        .from("sale_items")
+        .select("*")
+        .eq("sale_id", saleId);
+
+      if (itemsError) throw itemsError;
+
+      // 2️⃣ Restaurar stock para cada producto
+      for (const item of items) {
+        const { data: productData, error: productError } = await supabase
+          .from("products")
+          .select("stock_quantity")
+          .eq("id", item.product_id)
+          .single();
+
+        if (productError) throw productError;
+
+        const newStock = (productData.stock_quantity || 0) + item.quantity;
+
+        const { error: updateError } = await supabase
+          .from("products")
+          .update({ stock_quantity: newStock })
+          .eq("id", item.product_id);
+
+        if (updateError) throw updateError;
+      }
+
+      // 3️⃣ Eliminar los items de la venta
+      const { error: deleteItemsError } = await supabase
+        .from("sale_items")
+        .delete()
+        .eq("sale_id", saleId);
+
+      if (deleteItemsError) throw deleteItemsError;
+
+      // 4️⃣ Eliminar la venta
+      const { error: deleteSaleError } = await supabase
+        .from("sales")
+        .delete()
+        .eq("id", saleId);
+
+      if (deleteSaleError) throw deleteSaleError;
+
+      // 5️⃣ Actualizar estado local
+      setSales((prev) => prev.filter((p) => p.id !== saleId));
+
       toast({
-        title: "Error al eliminar",
-        description: error.message,
+        title: "Venta eliminada",
+        description: "Se ha eliminado la venta y se ha restaurado el stock.",
+      });
+    } catch (error: any) {
+      console.error("Error eliminando venta:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la venta",
         variant: "destructive",
       });
-    else setSales((prev) => prev.filter((p) => p.id !== id));
+    }
   };
 
   return (
@@ -180,7 +237,10 @@ export function SalesTable({ filters }: Props) {
           <TableBody>
             {filteredSales.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={9}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No hay ventas registradas
                 </TableCell>
               </TableRow>
@@ -190,18 +250,28 @@ export function SalesTable({ filters }: Props) {
                   <TableCell>{sale.sale_number}</TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="font-medium">{sale.customer_name || "Cliente general"}</div>
+                      <div className="font-medium">
+                        {sale.customer_name || "Cliente general"}
+                      </div>
                       {sale.customer_phone && (
-                        <div className="text-xs text-muted-foreground">{sale.customer_phone}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {sale.customer_phone}
+                        </div>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-xs">{sale.store?.name}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {sale.store?.name}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{sale.sale_items?.length || 0} productos</TableCell>
                   <TableCell>
-                    <div className="font-medium">{formatCurrency(sale.total_amount)}</div>
+                    {sale.sale_items?.length || 0} productos
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">
+                      {formatCurrency(sale.total_amount)}
+                    </div>
                     {sale.discount_amount > 0 && (
                       <div className="text-xs text-muted-foreground">
                         Desc: {formatCurrency(sale.discount_amount)}
@@ -209,15 +279,26 @@ export function SalesTable({ filters }: Props) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-xs">{getPaymentMethodBadge(sale.payment_method)}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {getPaymentMethodBadge(sale.payment_method)}
+                    </Badge>
                   </TableCell>
                   <TableCell>{getStatusBadge(sale.status)}</TableCell>
                   <TableCell>{formatDate(sale.created_at)}</TableCell>
-                  <TableCell>
+                  <TableCell className="flex gap-2">
                     <Button
-                      style={{ color: "red" }}
                       size="sm"
                       variant="outline"
+                      onClick={() =>
+                        (window.location.href = `/sales/${sale.id}`)
+                      }
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-500"
                       onClick={() => handleDelete(sale.id)}
                     >
                       <Icons.Trash2 />
@@ -245,56 +326,71 @@ export function SalesTable({ filters }: Props) {
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
-                      <h3 className="font-medium text-sm">{sale.sale_number}</h3>
-                      <p className="text-xs text-muted-foreground">{formatDate(sale.created_at)}</p>
+                      <h3 className="font-medium text-sm">
+                        {sale.sale_number}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(sale.created_at)}
+                      </p>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Ver detalles
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Printer className="h-4 w-4 mr-2" />
-                          Imprimir
-                        </DropdownMenuItem>
-                        {sale.status === "pending" && (
-                          <DropdownMenuItem>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Completar
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          (window.location.href = `/sales/${sale.id}`)
+                        }
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-500"
+                        onClick={() => handleDelete(sale.id)}
+                      >
+                        <Icons.Trash2 />
+                      </Button>
+                    </div>
                   </div>
-
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-xs">{sale.store?.name}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {sale.store?.name}
+                    </Badge>
                     {getStatusBadge(sale.status)}
-                    <Badge variant="outline" className="text-xs">{getPaymentMethodBadge(sale.payment_method)}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {getPaymentMethodBadge(sale.payment_method)}
+                    </Badge>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Cliente</p>
-                      <p className="font-medium">{sale.customer_name || "Cliente general"}</p>
-                      {sale.customer_phone && <p className="text-xs text-muted-foreground">{sale.customer_phone}</p>}
+                      <p className="font-medium">
+                        {sale.customer_name || "Cliente general"}
+                      </p>
+                      {sale.customer_phone && (
+                        <p className="text-xs text-muted-foreground">
+                          {sale.customer_phone}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-muted-foreground">Items</p>
-                      <p className="font-medium">{sale.sale_items?.length || 0} productos</p>
+                      <p className="font-medium">
+                        {sale.sale_items?.length || 0} productos
+                      </p>
                     </div>
                   </div>
 
                   <div className="pt-2 border-t">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Total:</span>
-                      <span className="font-bold text-lg">{formatCurrency(sale.total_amount)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Total:
+                      </span>
+                      <span className="font-bold text-lg">
+                        {formatCurrency(sale.total_amount)}
+                      </span>
                     </div>
                     {sale.discount_amount > 0 && (
                       <div className="flex justify-between items-center text-xs text-muted-foreground">
@@ -312,4 +408,3 @@ export function SalesTable({ filters }: Props) {
     </>
   );
 }
-  

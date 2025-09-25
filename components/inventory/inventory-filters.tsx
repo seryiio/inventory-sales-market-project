@@ -1,47 +1,84 @@
-"use client"
+"use client";
 
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
-import type { Store, Category } from "@/lib/types"
-import { Search } from "lucide-react"
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { Store, Category, Product } from "@/lib/types";
+import { Search } from "lucide-react";
 
 interface InventoryFiltersProps {
   onFilterChange: (filters: {
-    searchTerm: string
-    selectedStore: string
-    selectedCategory: string
-    stockFilter: string
-  }) => void
+    searchTerm: string;
+    selectedStore: string;
+    selectedSupplier: string;
+    selectedCategory: string;
+    stockFilter: string;
+  }) => void;
 }
 
 export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStore, setSelectedStore] = useState<string>("all")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [stockFilter, setStockFilter] = useState<string>("all")
-  const [stores, setStores] = useState<Store[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStore, setSelectedStore] = useState<string>("all");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<string>("all");
+  const [stores, setStores] = useState<Store[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    loadStoresAndCategories()
-  }, [])
+    loadStoresSupplierAndCategories();
+  }, []);
 
   useEffect(() => {
     // Cada vez que cambie un filtro, avisamos al componente padre
-    onFilterChange({ searchTerm, selectedStore, selectedCategory, stockFilter })
-  }, [searchTerm, selectedStore, selectedCategory, stockFilter])
+    onFilterChange({
+      searchTerm,
+      selectedStore,
+      selectedSupplier,
+      selectedCategory,
+      stockFilter,
+    });
+  }, [
+    searchTerm,
+    selectedStore,
+    selectedSupplier,
+    selectedCategory,
+    stockFilter,
+  ]);
 
-  const loadStoresAndCategories = async () => {
-    const supabase = createClient()
+  const loadStoresSupplierAndCategories = async () => {
+    const supabase = createClient();
 
-    const { data: storesData } = await supabase.from("stores").select("*").order("name")
-    const { data: categoriesData } = await supabase.from("categories").select("*").order("name")
+    const { data: storesData } = await supabase
+      .from("stores")
+      .select("*")
+      .order("name");
+    const { data: categoriesData } = await supabase
+      .from("categories")
+      .select("*")
+      .order("name");
 
-    if (storesData) setStores(storesData)
-    if (categoriesData) setCategories(categoriesData)
-  }
+    const { data: productsData } = await supabase
+      .from("products")
+      .select("*")
+      .order("name");
+
+    if (storesData) setStores(storesData);
+    if (productsData) setProducts(productsData);
+    if (categoriesData) setCategories(categoriesData);
+  };
+
+  const uniqueSuppliers = Array.from(
+    new Set(products.map((p) => p.supplier).filter(Boolean))
+  );
 
   return (
     <div className="space-y-4">
@@ -55,7 +92,7 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Select value={selectedStore} onValueChange={setSelectedStore}>
           <SelectTrigger>
             <SelectValue placeholder="Todas las tiendas" />
@@ -63,20 +100,47 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
           <SelectContent>
             <SelectItem value="all">Todas las tiendas</SelectItem>
             {stores.map((store) => (
-              <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+              <SelectItem key={store.id} value={store.id}>
+                {store.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+        <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todos los proveedores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los proveedores</SelectItem>
+            {uniqueSuppliers.map((supplier) => (
+              <SelectItem key={supplier} value={supplier}>
+                {supplier}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={selectedCategory}
+          onValueChange={setSelectedCategory}
+          disabled={selectedStore === "all"}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Todas las categorías" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las categorías</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-            ))}
+            {categories
+              .filter(
+                (cat) =>
+                  selectedStore === "all" || cat.store_id === selectedStore
+              )
+              .map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
@@ -93,5 +157,5 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
         </Select>
       </div>
     </div>
-  )
+  );
 }

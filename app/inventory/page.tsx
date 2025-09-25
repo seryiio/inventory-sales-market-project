@@ -12,6 +12,7 @@ export default function InventoryPage() {
     selectedStore: "all",
     selectedCategory: "all",
     stockFilter: "all",
+    selectedSupplier: "all",
   });
 
   return (

@@ -18,6 +18,7 @@ import type { Product } from "@/lib/types";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { Icons } from "../icons";
 
 type SaleItemForm = {
   product_id: string;
@@ -416,40 +417,51 @@ export function NewSaleForm() {
             {saleItems.map((item) => (
               <div
                 key={item.product_id}
-                className="flex justify-between items-center py-2 border-b border-neutral-200 dark:border-neutral-800 last:border-0"
+                className="flex flex-wrap justify-between items-center gap-2 py-2 border-b border-neutral-200 dark:border-neutral-800 last:border-0"
               >
-                <div>
+                <div className="flex justify-end items-end w-full">
+                  <Button
+                    style={{ color: "red" }}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => removeItem(item.product_id)}
+                  >
+                    <Icons.Trash2 />
+                  </Button>
+                </div>
+                <div className="flex justify-between items-center w-full">
                   <p className="font-medium">{item.name}</p>
                   <p className="text-xs text-gray-500">
                     S/ {item.price.toFixed(2)} × {item.quantity}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => decreaseQty(item.product_id)}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="w-6 text-center">{item.quantity}</span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => increaseQty(item.product_id)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                <div className="flex flex-wrap justify-between w-full items-center gap-2">
+                  <p>Cantidad: </p>
+                  <div className="flex justify-center items-center">
+                    <Button
+                      className="bg-black text-white"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => decreaseQty(item.product_id)}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-6 text-center">{item.quantity}</span>
+                    <Button
+                      className="bg-black text-white"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => increaseQty(item.product_id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-between w-full items-center gap-2">
+                  <p>Total: </p>
                   <p className="font-semibold w-20 text-right">
                     S/ {item.total.toFixed(2)}
                   </p>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => removeItem(item.product_id)}
-                  >
-                    <X className="h-4 w-4 text-red-500" />
-                  </Button>
                 </div>
               </div>
             ))}

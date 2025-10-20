@@ -127,6 +127,7 @@ export function AddProductDialog({
       ...formData,
       store_id: selectedStore,
       category_id: formData.category_id || null,
+      expiry_date: Number(formData.expiry_date) || null,
       unit_price: Number(formData.unit_price) || 0,
       cost_price: Number(formData.cost_price) || 0,
       stock_quantity: Number(formData.stock_quantity) || 0,
@@ -135,7 +136,9 @@ export function AddProductDialog({
     };
 
     try {
-      const { data, error } = await supabase.from("products").insert([productData]);
+      const { data, error } = await supabase
+        .from("products")
+        .insert([productData]);
 
       if (error) {
         toast({
@@ -200,13 +203,20 @@ export function AddProductDialog({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="store">Tienda *</Label>
-                <Select value={selectedStore} onValueChange={setSelectedStore} required>
+                <Select
+                  value={selectedStore}
+                  onValueChange={setSelectedStore}
+                  required
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar tienda" />
                   </SelectTrigger>
                   <SelectContent>
                     {stores.map((store: any) => (
-                      <SelectItem key={String(store.id)} value={String(store.id)}>
+                      <SelectItem
+                        key={String(store.id)}
+                        value={String(store.id)}
+                      >
                         {store.name}
                       </SelectItem>
                     ))}
@@ -227,7 +237,10 @@ export function AddProductDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category: any) => (
-                      <SelectItem key={String(category.id)} value={String(category.id)}>
+                      <SelectItem
+                        key={String(category.id)}
+                        value={String(category.id)}
+                      >
                         {category.name}
                       </SelectItem>
                     ))}
@@ -256,13 +269,16 @@ export function AddProductDialog({
                 id="description"
                 value={formData.description}
                 onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, description: e.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
                 }
                 rows={3}
               />
             </div>
 
-            {/* código de barras + SKU */}
+            {/* código de barras + SKU 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="barcode">Código de Barras</Label>
@@ -295,10 +311,10 @@ export function AddProductDialog({
                 />
               </div>
             </div>
-
+*/}
             {/* precios */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="flex gap-4">
+              <div className="w-full space-y-2">
                 <Label htmlFor="unit_price">Precio de Venta *</Label>
                 <Input
                   id="unit_price"
@@ -307,12 +323,15 @@ export function AddProductDialog({
                   min="0"
                   value={formData.unit_price}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, unit_price: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      unit_price: e.target.value,
+                    }))
                   }
                   required
                 />
               </div>
-
+              {/* precios de costo
               <div className="space-y-2">
                 <Label htmlFor="cost_price">Precio de Costo *</Label>
                 <Input
@@ -322,14 +341,18 @@ export function AddProductDialog({
                   min="0"
                   value={formData.cost_price}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, cost_price: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      cost_price: e.target.value,
+                    }))
                   }
                   required
                 />
               </div>
+               */}
             </div>
 
-            {/* stock */}
+            {/* stock 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="stock_quantity">Stock Inicial *</Label>
@@ -339,7 +362,10 @@ export function AddProductDialog({
                   min="0"
                   value={formData.stock_quantity}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, stock_quantity: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      stock_quantity: e.target.value,
+                    }))
                   }
                   required
                 />
@@ -353,7 +379,10 @@ export function AddProductDialog({
                   min="0"
                   value={formData.min_stock}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, min_stock: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      min_stock: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -366,13 +395,16 @@ export function AddProductDialog({
                   min="0"
                   value={formData.max_stock}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, max_stock: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      max_stock: e.target.value,
+                    }))
                   }
                 />
               </div>
             </div>
-
-            {/* vencimiento / lote */}
+*/}
+            {/* vencimiento / lote 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="expiry_date">Fecha de Vencimiento</Label>
@@ -381,7 +413,10 @@ export function AddProductDialog({
                   type="date"
                   value={formData.expiry_date}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, expiry_date: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      expiry_date: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -392,13 +427,16 @@ export function AddProductDialog({
                   id="batch_number"
                   value={formData.batch_number}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, batch_number: e.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      batch_number: e.target.value,
+                    }))
                   }
                 />
               </div>
             </div>
-
-            {/* proveedor */}
+*/}
+            {/* proveedor 
             <div className="space-y-2">
               <Label htmlFor="supplier">Proveedor</Label>
               <Input
@@ -409,10 +447,14 @@ export function AddProductDialog({
                 }
               />
             </div>
-
+*/}
             {/* acciones */}
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>

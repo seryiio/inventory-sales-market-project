@@ -310,12 +310,14 @@ export function InventoryTable({ filters }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
+              {/*
               <TableHead onClick={() => handleSort("supplier")}>
                 Proveedor
                 {sortConfig?.key === "supplier" && (
                   <SortIndicator direction={sortConfig.direction} />
                 )}
               </TableHead>
+              */}
               <TableHead onClick={() => handleSort("name")}>
                 Producto
                 {sortConfig?.key === "name" && (
@@ -334,23 +336,28 @@ export function InventoryTable({ filters }: Props) {
                   <SortIndicator direction={sortConfig.direction} />
                 )}
               </TableHead>
+              {/*
               <TableHead onClick={() => handleSort("stock_quantity")}>
                 Stock
                 {sortConfig?.key === "stock_quantity" && (
                   <SortIndicator direction={sortConfig.direction} />
                 )}
               </TableHead>
+              */}
               <TableHead onClick={() => handleSort("unit_price")}>
                 Precio
                 {sortConfig?.key === "unit_price" && (
                   <SortIndicator direction={sortConfig.direction} />
                 )}
               </TableHead>
+              {/*
               <TableHead onClick={() => handleSort("cost_price")}>
                 Costo
                 {sortConfig?.key === "cost_price" && (
                   <SortIndicator direction={sortConfig.direction} />
                 )}
+              */}
+              {/*
               </TableHead>
               <TableHead onClick={() => handleSort("expiry_date")}>
                 F. Vencimiento
@@ -358,6 +365,7 @@ export function InventoryTable({ filters }: Props) {
                   <SortIndicator direction={sortConfig.direction} />
                 )}
               </TableHead>
+              */}
               <TableHead>Estado</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
@@ -377,7 +385,9 @@ export function InventoryTable({ filters }: Props) {
                 const stockStatus = getStockStatus(product);
                 return (
                   <TableRow key={product.id}>
+                    {/*
                     <TableCell>{product.supplier}</TableCell>
+                    */}
                     <TableCell>{product.name}</TableCell>
                     <TableCell>
                       <Badge>
@@ -387,6 +397,8 @@ export function InventoryTable({ filters }: Props) {
                     <TableCell>
                       {(product as any).category?.name || "Sin categoría"}
                     </TableCell>
+                    {/*
+
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
@@ -397,9 +409,14 @@ export function InventoryTable({ filters }: Props) {
                         )}
                       </div>
                     </TableCell>
+                    */}
                     <TableCell>{formatCurrency(product.unit_price)}</TableCell>
+                    {/*
                     <TableCell>{formatCurrency(product.cost_price)}</TableCell>
+                    */}
+                    {/*
                     <TableCell>{product.expiry_date}</TableCell>
+                    */}
                     <TableCell>
                       <Badge variant={stockStatus.variant}>
                         {stockStatus.label}
@@ -441,9 +458,11 @@ export function InventoryTable({ filters }: Props) {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="font-medium">{product.name}</div>
+                    {/*
                     <div className="text-sm text-muted-foreground">
                       {product.supplier}
                     </div>
+                    */}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -476,6 +495,7 @@ export function InventoryTable({ filters }: Props) {
                     {(product as any).category?.name || "Sin categoría"}
                   </div>
                 </div>
+                {/*
                 <div>
                   <Label>Stock</Label>
                   <div className="flex items-center gap-2">
@@ -487,18 +507,23 @@ export function InventoryTable({ filters }: Props) {
                     )}
                   </div>
                 </div>
+                */}
                 <div>
                   <Label>Precio</Label>
                   <div>{formatCurrency(product.unit_price)}</div>
                 </div>
+                {/*
                 <div>
                   <Label>Costo</Label>
                   <div>{formatCurrency(product.cost_price)}</div>
                 </div>
+                */}
+                {/*
                 <div>
                   <Label>Fecha de Vencimiento</Label>
                   <div>{product.expiry_date}</div>
                 </div>
+                */}
                 <div>
                   <Label>Estado</Label>
                   <Badge variant={stockStatus.variant}>

@@ -25,10 +25,10 @@ export interface Product {
   category_id?: string
   store_id: string
   unit_price: number
-  cost_price: number
-  stock_quantity: number
-  min_stock: number
-  max_stock: number
+  cost_price?: number
+  stock_quantity?: number
+  min_stock?: number
+  max_stock?: number
   expiry_date?: string
   batch_number?: string
   supplier?: string

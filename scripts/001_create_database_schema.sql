@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(200) NOT NULL,
   description TEXT,
-  barcode VARCHAR(50) UNIQUE,
+  barcode VARCHAR(50),
   sku VARCHAR(50),
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   store_id UUID REFERENCES stores(id) ON DELETE CASCADE,
@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- índices
+CREATE INDEX IF NOT EXISTS idx_products_store_id ON products(store_id);
+CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
+
 
 -- Create sales table
 CREATE TABLE IF NOT EXISTS sales (
